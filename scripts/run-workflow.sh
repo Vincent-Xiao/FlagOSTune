@@ -309,7 +309,7 @@ stop_tmux_program() {
 
 # 等待服务器就绪
 wait_server_ready() {
-    local timeout=600
+    local timeout=3600
     local interval=2
     local url="http://localhost:${PORT}/v1/models"
 
