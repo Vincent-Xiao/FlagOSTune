@@ -27,6 +27,9 @@ PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 TOOL_CONFIG="${SCRIPT_DIR}/tools/tool_config.yaml"
 CONFIG_FILE="${PROJECT_ROOT}/config.yaml"
 
+# 捕获当前 Python 解释器路径
+Python_EXECUTABLE="${Python_EXECUTABLE:-$(which python3 2>/dev/null || echo 'python3')}"
+
 # 颜色输出
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -105,13 +108,21 @@ parse_args() {
 # 检查依赖
 check_dependencies() {
     local missing=()
+    local required=(python3 tmux curl)
 
-    command -v python3 &>/dev/null || missing+=("python3")
-    command -v yq &>/dev/null || missing+=("yq (推荐)")
-    command -v tmux &>/dev/null || missing+=("tmux")
+    for cmd in "${required[@]}"; do
+        command -v "$cmd" &>/dev/null || missing+=("$cmd")
+    done
+
+    # yq 是可选的，但强烈推荐
+    if ! command -v yq &>/dev/null; then
+        log_warn "yq 未安装，将使用内置简单 YAML 解析器"
+    fi
 
     if [[ ${#missing[@]} -gt 0 ]]; then
-        log_warn "缺少依赖: ${missing[*]}"
+        log_error "缺少必需依赖: ${missing[*]}"
+        log_info "请运行: ./scripts/setup-deps.sh"
+        exit 1
     fi
 }
 
@@ -312,9 +323,12 @@ run_benchmark() {
     log_dir=$(yq '.paths.log_dir' "$TOOL_CONFIG")
     mkdir -p "${PROJECT_ROOT}/${log_dir}"
 
-    # 运行 Python 基准测试脚本
+    # 运行 Python 基准测试脚本 (使用当前 Python 环境)
     cd "$PROJECT_ROOT"
-    python3 "${SCRIPT_DIR}/tools/benchmark_runner.py"
+
+    # 使用当前 Python 解释器
+    local python_exe="${Python_EXECUTABLE:-python3}"
+    $python_exe "${SCRIPT_DIR}/tools/benchmark_runner.py"
 }
 
 # 单次运行
@@ -338,7 +352,13 @@ run_single() {
     ensure_tmux_session
     cd "$PROJECT_ROOT"
 
-    local full_cmd="cd $PROJECT_ROOT && TRITON_PRINT_AUTOTUNING=1 $env_vars $serve_cmd"
+    # 获取当前 conda 环境激活命令
+    local conda_activate=""
+    if [[ -n "${CONDA_DEFAULT_ENV:-}" ]]; then
+        conda_activate="source $(conda info --base)/etc/profile.d/conda.sh && conda activate ${CONDA_DEFAULT_ENV} && "
+    fi
+
+    local full_cmd="${conda_activate}cd $PROJECT_ROOT && TRITON_PRINT_AUTOTUNING=1 $env_vars $serve_cmd"
     send_to_tmux "$full_cmd"
 
     # 5. 等待服务器就绪
