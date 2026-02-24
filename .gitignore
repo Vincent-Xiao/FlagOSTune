@@ -4,3 +4,7 @@ minicpm-vllm/
 .trellis/
 AGENTS.md
 FlagTuneGuidance.md
+reference/
+reports/
+results/
+.vscode/
