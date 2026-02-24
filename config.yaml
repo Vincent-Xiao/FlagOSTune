@@ -117,11 +117,13 @@ target_ops:
 # 路径配置
 # ===================
 paths:
-  # 结果目录 (工具产生的日志和数据)
+  # 结果目录根路径 (实际路径: {results}/{model.name}/)
   results: results
-  # 报告目录 (分析结果)
+  # 报告目录根路径 (实际路径: {reports}/{model.name}/)
   reports: reports
   # Gems 配置目录
   gems_config: gems-config
   # 处理脚本目录
   processing: processing
+  # 是否在路径中包含模型名称
+  use_model_name: true

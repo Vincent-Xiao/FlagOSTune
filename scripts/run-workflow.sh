@@ -141,6 +141,20 @@ read_config() {
         PORT_BASE=$(yq '.benchmark.port_base' "$CONFIG_FILE")
         NUM_RUNS=$(yq '.benchmark.num_runs' "$CONFIG_FILE")
 
+        # 读取路径配置
+        PATHS_RESULTS=$(yq '.paths.results // "results"' "$CONFIG_FILE")
+        PATHS_REPORTS=$(yq '.paths.reports // "reports"' "$CONFIG_FILE")
+        PATHS_USE_MODEL_NAME=$(yq '.paths.use_model_name // true' "$CONFIG_FILE")
+
+        # 构建带模型名的路径前缀
+        if [[ "$PATHS_USE_MODEL_NAME" == "true" ]]; then
+            PATH_PREFIX="${PATHS_RESULTS}/${MODEL_NAME}"
+            REPORT_PREFIX="${PATHS_REPORTS}/${MODEL_NAME}"
+        else
+            PATH_PREFIX="${PATHS_RESULTS}"
+            REPORT_PREFIX="${PATHS_REPORTS}"
+        fi
+
         # 读取场景配置
         if [[ "$OPTIMIZED" == "true" ]]; then
             SCENARIO_TYPE="optimized"
@@ -184,14 +198,21 @@ update_tool_config() {
     yq -i ".current_run.nsys_profile = $NSYS_PROFILE" "$TOOL_CONFIG"
     yq -i ".current_run.torch_profile = $TORCH_PROFILE" "$TOOL_CONFIG"
 
-    # 更新日志路径
-    local log_dir="results/bench${optimized_suffix}${nsys_suffix}${torch_suffix}_log/vllm_bench_${MODE}${gems_suffix}_logs"
-    local server_log="results/server-logs/vllm_bench_${MODE}${gems_suffix}${optimized_suffix}${nsys_suffix}${torch_suffix}_server.log"
+    # 更新日志路径 (包含模型名)
+    local log_dir="${PATH_PREFIX}/bench${optimized_suffix}${nsys_suffix}${torch_suffix}_log/vllm_bench_${MODE}${gems_suffix}_logs"
+    local server_log_dir="${PATH_PREFIX}/server-logs"
+    local nsys_output_dir="${PATH_PREFIX}/nsys-raw"
+    local torch_output_dir="${PATH_PREFIX}/torch-raw"
+    local reports_dir="${REPORT_PREFIX}"
 
     yq -i ".paths.log_dir = \"$log_dir\"" "$TOOL_CONFIG"
-    yq -i ".paths.server_log_dir = \"results/server-logs\"" "$TOOL_CONFIG"
+    yq -i ".paths.server_log_dir = \"$server_log_dir\"" "$TOOL_CONFIG"
+    yq -i ".paths.nsys_output_dir = \"$nsys_output_dir\"" "$TOOL_CONFIG"
+    yq -i ".paths.torch_output_dir = \"$torch_output_dir\"" "$TOOL_CONFIG"
+    yq -i ".paths.reports_dir = \"$reports_dir\"" "$TOOL_CONFIG"
+    yq -i ".paths.model_name = \"$MODEL_NAME\"" "$TOOL_CONFIG"
 
-    log_info "工具配置已更新"
+    log_info "工具配置已更新 (路径前缀: ${PATH_PREFIX})"
 }
 
 # 应用 vLLM 补丁

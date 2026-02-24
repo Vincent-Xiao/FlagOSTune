@@ -1,11 +1,14 @@
 minicpm-vllm/
+
 .claude/
 .cursor/
 .trellis/
+.vscode/
+
 AGENTS.md
 FlagTuneGuidance.md
 FlagTuneAgentGuidance.md
-reference/
+
 reports/
 results/
-.vscode/
+gems-config/
