@@ -145,6 +145,7 @@ if os.getenv("USE_FLAGOS") == "1":
 
     USE_GEMS_MODE = os.getenv("USE_GEMS_MODE")
     GEMS_ONCE = os.getenv("GEMS_ONCE", "True").lower() == "true"
+    GEMS_MODEL_NAME = os.getenv("GEMS_MODEL_NAME")  # 模型名称，用于构建保存路径
 
     # import from FlagGems/src/flag_gems/__init__.py
     FlagGemsList=["_unique2", "_upsample_bicubic2d_aa", "abs", "abs_", "acos",
@@ -204,22 +205,32 @@ if os.getenv("USE_FLAGOS") == "1":
                   "weight_norm_interface_backward", "where_scalar_other", "where_scalar_self",
                   "where_self", "where_self_out", "zeros", "zeros_like"]
 
+    # 构建保存路径: results/${model_name}/gems-config/xxx.txt
+    def _get_gems_path(filename):
+        if GEMS_MODEL_NAME:
+            return f"./results/{GEMS_MODEL_NAME}/gems-config/{filename}"
+        return None
+
     if USE_GEMS_MODE == "all":
-        flag_gems.enable(record=True,
-                         once=GEMS_ONCE,
-                         path=f"./gems-config/gems-{USE_GEMS_MODE}.txt")
+        gems_path = _get_gems_path(f"gems-{USE_GEMS_MODE}.txt")
+        kwargs = {"record": True, "once": GEMS_ONCE}
+        if gems_path:
+            kwargs["path"] = gems_path
+        flag_gems.enable(**kwargs)
     elif USE_GEMS_MODE == "NULL":
-        flag_gems.enable(record=True,
-                         once=GEMS_ONCE,
-                         path=f"./gems-config/gems-{USE_GEMS_MODE}.txt",
-                         unused=FlagGemsList)
+        gems_path = _get_gems_path(f"gems-{USE_GEMS_MODE}.txt")
+        kwargs = {"record": True, "once": GEMS_ONCE, "unused": FlagGemsList}
+        if gems_path:
+            kwargs["path"] = gems_path
+        flag_gems.enable(**kwargs)
     else:
         keep_ops = [USE_GEMS_MODE] if isinstance(USE_GEMS_MODE, str) else USE_GEMS_MODE
-        model_name = USE_GEMS_MODE if isinstance(USE_GEMS_MODE,str) else "custom"
-        flag_gems.only_enable(record=True,
-                              once=GEMS_ONCE,
-                              path=f"./gems-config/gems-{model_name}-{keep_ops}.txt",
-                              include=keep_ops)
+        op_name = USE_GEMS_MODE if isinstance(USE_GEMS_MODE, str) else "custom"
+        gems_path = _get_gems_path(f"gems-{op_name}-{keep_ops}.txt")
+        kwargs = {"record": True, "once": GEMS_ONCE, "include": keep_ops}
+        if gems_path:
+            kwargs["path"] = gems_path
+        flag_gems.only_enable(**kwargs)
 
 PATCH_EOF
 }

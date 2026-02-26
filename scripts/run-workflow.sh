@@ -6,10 +6,12 @@
 #   ./run-workflow.sh --mode cuda --device 0
 #   ./run-workflow.sh --mode gems --device 0 --gems-mode all
 #   ./run-workflow.sh --mode gems --device 0 --ops-file ops.txt
+#   ./run-workflow.sh --mode cuda --device 0 --model deepseek-3.2
 #
 # 参数:
 #   --mode cuda|gems      运行模式
 #   --device N            GPU 设备 ID
+#   --model NAME          使用 config.yaml.NAME 作为配置文件
 #   --gems-mode MODE      FlagGems 模式 (all|NULL|算子名)
 #   --ops-file FILE       算子列表文件
 #   --optimized           优化模式
@@ -17,6 +19,7 @@
 #   --torch               Torch 性能分析
 #   --run-idle            仅启动服务器不运行测试
 #   --batch               批量模式 (逐算子运行)
+#   --reuse               复用已有服务器，不重新启动
 #
 
 set -euo pipefail
@@ -52,6 +55,8 @@ NSYS_PROFILE=false
 TORCH_PROFILE=false
 RUN_IDLE=false
 BATCH_MODE=false
+REUSE_SERVER=false  # 复用已有服务器
+MODEL_CONFIG=""  # 模型配置后缀，如 "deepseek-3.2"
 
 # 解析参数
 parse_args() {
@@ -93,6 +98,14 @@ parse_args() {
                 BATCH_MODE=true
                 shift
                 ;;
+            --reuse)
+                REUSE_SERVER=true
+                shift
+                ;;
+            --model)
+                MODEL_CONFIG="$2"
+                shift 2
+                ;;
             -h|--help)
                 head -25 "$0" | tail -23
                 exit 0
@@ -103,6 +116,27 @@ parse_args() {
                 ;;
         esac
     done
+}
+
+# 确定配置文件路径
+resolve_config_file() {
+    if [[ -n "$MODEL_CONFIG" ]]; then
+        CONFIG_FILE="${PROJECT_ROOT}/config.yaml.${MODEL_CONFIG}"
+        if [[ ! -f "$CONFIG_FILE" ]]; then
+            log_error "配置文件不存在: $CONFIG_FILE"
+            log_info "请从 config.yaml.template 创建: cp config.yaml.template config.yaml.${MODEL_CONFIG}"
+            exit 1
+        fi
+        log_info "使用模型配置: $CONFIG_FILE"
+    else
+        CONFIG_FILE="${PROJECT_ROOT}/config.yaml"
+        if [[ ! -f "$CONFIG_FILE" ]]; then
+            log_error "默认配置文件不存在: $CONFIG_FILE"
+            log_info "请从 config.yaml.template 创建: cp config.yaml.template config.yaml"
+            log_info "或使用 --model 参数指定模型配置: --model <name>"
+            exit 1
+        fi
+    fi
 }
 
 # 检查依赖
@@ -128,11 +162,6 @@ check_dependencies() {
 
 # 读取配置
 read_config() {
-    if [[ ! -f "$CONFIG_FILE" ]]; then
-        log_error "配置文件不存在: $CONFIG_FILE"
-        exit 1
-    fi
-
     # 读取模型配置
     if command -v yq &>/dev/null; then
         MODEL_PATH=$(yq '.model.path' "$CONFIG_FILE")
@@ -189,7 +218,7 @@ update_tool_config() {
     local torch_suffix=""
     [[ "$TORCH_PROFILE" == "true" ]] && torch_suffix="_torch_profile"
 
-    # 更新配置
+    # 更新运行配置
     yq -i ".current_run.mode = \"$MODE\"" "$TOOL_CONFIG"
     yq -i ".current_run.device = $DEVICE" "$TOOL_CONFIG"
     yq -i ".current_run.port = $PORT" "$TOOL_CONFIG"
@@ -197,6 +226,29 @@ update_tool_config() {
     yq -i ".current_run.optimized = $OPTIMIZED" "$TOOL_CONFIG"
     yq -i ".current_run.nsys_profile = $NSYS_PROFILE" "$TOOL_CONFIG"
     yq -i ".current_run.torch_profile = $TORCH_PROFILE" "$TOOL_CONFIG"
+
+    # 从 CONFIG_FILE 复制模型配置到 tool_config
+    local model_path model_name tokenizer_path tensor_parallel
+    model_path=$(yq '.model.path' "$CONFIG_FILE")
+    model_name=$(yq '.model.name' "$CONFIG_FILE")
+    tokenizer_path=$(yq '.model.tokenizer_path // ""' "$CONFIG_FILE")
+    tensor_parallel=$(yq '.serve.tensor_parallel_size // .model.tensor_parallel_size // 8' "$CONFIG_FILE")
+
+    yq -i ".model.path = \"$model_path\"" "$TOOL_CONFIG"
+    yq -i ".model.name = \"$model_name\"" "$TOOL_CONFIG"
+    yq -i ".model.tokenizer_path = \"$tokenizer_path\"" "$TOOL_CONFIG"
+    yq -i ".model.tensor_parallel_size = $tensor_parallel" "$TOOL_CONFIG"
+
+    # 从 CONFIG_FILE 复制基准测试配置到 tool_config
+    local benchmark_host benchmark_num_runs
+    benchmark_host=$(yq '.benchmark.host // "127.0.0.1"' "$CONFIG_FILE")
+    benchmark_num_runs=$(yq '.benchmark.num_runs // 4' "$CONFIG_FILE")
+
+    yq -i ".benchmark.host = \"$benchmark_host\"" "$TOOL_CONFIG"
+    yq -i ".benchmark.num_runs = $benchmark_num_runs" "$TOOL_CONFIG"
+
+    # 复制场景配置
+    yq -i ".benchmark.scenarios = $(yq '.benchmark.scenarios' "$CONFIG_FILE" -o=json)" "$TOOL_CONFIG"
 
     # 更新日志路径 (包含模型名)
     local log_dir="${PATH_PREFIX}/bench${optimized_suffix}${nsys_suffix}${torch_suffix}_log/vllm_bench_${MODE}${gems_suffix}_logs"
@@ -242,14 +294,18 @@ generate_serve_command() {
     local gpu_mem_util trust_remote reasoning_parser
     gpu_mem_util=$(yq '.serve.gpu_memory_utilization' "$CONFIG_FILE")
     trust_remote=$(yq '.serve.trust_remote_code' "$CONFIG_FILE")
+    tokenizer_mode=$(yq '.serve.tokenizer_mode // ""' "$CONFIG_FILE")
     reasoning_parser=$(yq '.serve.reasoning_parser // ""' "$CONFIG_FILE")
+    tool_call_parser=$(yq '.serve.tool_call_parser // ""' "$CONFIG_FILE")
     max_batched_tokens=$(yq '.serve.max_num_batched_tokens // ""' "$CONFIG_FILE")
     max_seqs=$(yq '.serve.max_num_seqs // ""' "$CONFIG_FILE")
     extra_args=$(yq '.serve.extra_args // ""' "$CONFIG_FILE")
 
     [[ -n "$gpu_mem_util" && "$gpu_mem_util" != "null" ]] && cmd+=" --gpu_memory_utilization $gpu_mem_util"
     [[ "$trust_remote" == "true" ]] && cmd+=" --trust-remote-code"
+    [[ -n "$tokenizer_mode" && "$tokenizer_mode" != "null" ]] && cmd+=" --tokenizer-mode $tokenizer_mode"
     [[ -n "$reasoning_parser" && "$reasoning_parser" != "null" ]] && cmd+=" --reasoning-parser $reasoning_parser"
+    [[ -n "$tool_call_parser" && "$tool_call_parser" != "null" ]] && cmd+=" --tool-call-parser $tool_call_parser"
     [[ -n "$max_batched_tokens" && "$max_batched_tokens" != "null" ]] && cmd+=" --max-num-batched-tokens $max_batched_tokens"
     [[ -n "$max_seqs" && "$max_seqs" != "null" ]] && cmd+=" --max-num-seqs $max_seqs"
     [[ -n "$extra_args" && "$extra_args" != "null" ]] && cmd+=" $extra_args"
@@ -272,6 +328,8 @@ generate_env_vars() {
             env_vars+=("USE_GEMS_MODE=\"${GEMS_MODE}\"")
         fi
         env_vars+=("GEMS_ONCE=true")
+        # 传递模型名称用于构建 gems 配置保存路径
+        env_vars+=("GEMS_MODEL_NAME=\"${MODEL_NAME}\"")
     fi
 
     echo "${env_vars[*]}"
@@ -359,49 +417,66 @@ run_single() {
     # 1. 更新配置
     update_tool_config
 
-    # 2. 应用补丁
-    apply_vllm_patch
+    if [[ "$REUSE_SERVER" == "true" ]]; then
+        log_info "复用模式: 跳过服务器启动和补丁操作"
 
-    # 3. 生成命令
-    local serve_cmd env_vars
-    serve_cmd=$(generate_serve_command)
-    env_vars=$(generate_env_vars)
+        # 检查服务器是否可用
+        local url="http://localhost:${PORT}/v1/models"
+        if ! curl -fsS --max-time 2 "$url" >/dev/null 2>&1; then
+            log_error "服务器不可用: $url"
+            log_error "请先启动服务器或移除 --reuse 选项"
+            exit 1
+        fi
+        log_info "服务器已就绪: $url"
+    else
+        # 2. 应用补丁
+        apply_vllm_patch
 
-    log_info "Serve 命令: TRITON_PRINT_AUTOTUNING=1 $env_vars $serve_cmd"
+        # 3. 生成命令
+        local serve_cmd env_vars
+        serve_cmd=$(generate_serve_command)
+        env_vars=$(generate_env_vars)
 
-    # 4. 在 tmux 中启动服务器
-    ensure_tmux_session
-    cd "$PROJECT_ROOT"
+        log_info "Serve 命令: TRITON_PRINT_AUTOTUNING=1 $env_vars $serve_cmd"
 
-    # 获取当前 conda 环境激活命令
-    local conda_activate=""
-    if [[ -n "${CONDA_DEFAULT_ENV:-}" ]]; then
-        conda_activate="source $(conda info --base)/etc/profile.d/conda.sh && conda activate ${CONDA_DEFAULT_ENV} && "
-    fi
+        # 4. 在 tmux 中启动服务器
+        ensure_tmux_session
+        cd "$PROJECT_ROOT"
 
-    local full_cmd="${conda_activate}cd $PROJECT_ROOT && TRITON_PRINT_AUTOTUNING=1 $env_vars $serve_cmd"
-    send_to_tmux "$full_cmd"
+        # 获取当前 conda 环境激活命令
+        local conda_activate=""
+        if [[ -n "${CONDA_DEFAULT_ENV:-}" ]]; then
+            conda_activate="source $(conda info --base)/etc/profile.d/conda.sh && conda activate ${CONDA_DEFAULT_ENV} && "
+        fi
 
-    # 5. 等待服务器就绪
-    wait_server_ready
+        local full_cmd="${conda_activate}cd $PROJECT_ROOT && TRITON_PRINT_AUTOTUNING=1 $env_vars $serve_cmd"
+        send_to_tmux "$full_cmd"
 
-    if [[ "$RUN_IDLE" == "true" ]]; then
-        log_info "仅启动服务器模式，不运行测试"
-        log_info "服务器运行在 tmux 会话: $TMUX_SESSION:$TMUX_WINDOW"
-        log_info "连接命令: tmux attach -t $TMUX_SESSION"
-        return 0
+        # 5. 等待服务器就绪
+        wait_server_ready
+
+        if [[ "$RUN_IDLE" == "true" ]]; then
+            log_info "仅启动服务器模式，不运行测试"
+            log_info "服务器运行在 tmux 会话: $TMUX_SESSION:$TMUX_WINDOW"
+            log_info "连接命令: tmux attach -t $TMUX_SESSION"
+            return 0
+        fi
     fi
 
     # 6. 运行基准测试
     run_benchmark
 
-    # 7. 停止服务器
-    log_step "停止服务器..."
-    stop_tmux_program
-    sleep 2
+    if [[ "$REUSE_SERVER" == "true" ]]; then
+        log_info "复用模式: 跳过服务器停止"
+    else
+        # 7. 停止服务器
+        log_step "停止服务器..."
+        stop_tmux_program
+        sleep 2
 
-    # 8. 还原补丁
-    restore_vllm_patch
+        # 8. 还原补丁
+        restore_vllm_patch
+    fi
 }
 
 # 批量运行 (逐算子)
@@ -450,6 +525,7 @@ main() {
     log_info "模式: $MODE, 设备: $DEVICE"
 
     check_dependencies
+    resolve_config_file
     read_config
 
     cd "$PROJECT_ROOT"

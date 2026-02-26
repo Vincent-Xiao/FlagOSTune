@@ -23,13 +23,13 @@ log_step() { echo -e "${BLUE}[STEP]${NC} $1"; }
 
 # 依赖列表
 APT_DEPS=(
+    "sudo"
     "jq"
     "tmux"
     "curl"
 )
 
 PIP_DEPS=(
-    "pyyaml"
 )
 
 # 可选依赖
@@ -96,13 +96,6 @@ check_yq() {
 install_yq() {
     log_step "安装 yq..."
 
-    # 方法1: 尝试 pip 安装 pyyaml-cli
-    if 0 && pip3 install pyyaml-cli 2>/dev/null; then
-        log_info "yq 已通过 pip 安装"
-        return 0
-    fi
-
-    # 方法2: 下载二进制文件
     local yq_url="https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64"
 
     log_info "下载 yq 二进制文件..."

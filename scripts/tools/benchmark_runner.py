@@ -2,11 +2,12 @@
 """
 benchmark_runner.py - FlagTune 基准测试执行器
 
-从 tool_config.yaml 读取配置，执行 vLLM 基准测试。
+从 tool_config.yaml 读取所有配置，执行 vLLM 基准测试。
 支持多种场景和运行模式。
+
+注意: 所有配置由 run-workflow.sh 从 config.yaml 复制到 tool_config.yaml
 """
 
-import os
 import subprocess
 import sys
 from datetime import datetime
@@ -35,8 +36,8 @@ def get_project_root() -> Path:
     return Path(__file__).parent.parent.parent
 
 
-def load_tool_config() -> dict:
-    """加载工具配置"""
+def load_config() -> dict:
+    """加载配置 (仅从 tool_config.yaml)"""
     config_path = get_project_root() / "scripts" / "tools" / "tool_config.yaml"
 
     if not config_path.exists():
@@ -48,21 +49,6 @@ def load_tool_config() -> dict:
             return yaml.safe_load(f)
     else:
         # 简单的 YAML 解析
-        return parse_simple_yaml(config_path)
-
-
-def load_user_config() -> dict:
-    """加载用户配置"""
-    config_path = get_project_root() / "config.yaml"
-
-    if not config_path.exists():
-        print(f"[ERROR] 配置文件不存在: {config_path}")
-        sys.exit(1)
-
-    if HAS_YAML:
-        with open(config_path) as f:
-            return yaml.safe_load(f)
-    else:
         return parse_simple_yaml(config_path)
 
 
@@ -144,12 +130,12 @@ def parse_yaml_value(value: str) -> Any:
     return value
 
 
-def get_scenarios(user_config: dict, tool_config: dict) -> list:
+def get_scenarios(config: dict) -> list:
     """获取测试场景"""
-    optimized = tool_config.get('current_run', {}).get('optimized', False)
+    optimized = config.get('current_run', {}).get('optimized', False)
 
     scenario_type = 'optimized' if optimized else 'full'
-    scenarios = user_config.get('benchmark', {}).get('scenarios', {}).get(scenario_type, [])
+    scenarios = config.get('benchmark', {}).get('scenarios', {}).get(scenario_type, [])
 
     # 默认场景
     if not scenarios:
@@ -160,17 +146,18 @@ def get_scenarios(user_config: dict, tool_config: dict) -> list:
     return scenarios
 
 
-def build_benchmark_command(scenario: dict, tool_config: dict, user_config: dict) -> list:
+def build_benchmark_command(scenario: dict, config: dict) -> list:
     """构建基准测试命令"""
-    current_run = tool_config.get('current_run', {})
+    current_run = config.get('current_run', {})
     nsys_profile = current_run.get('nsys_profile', False)
     torch_profile = current_run.get('torch_profile', False)
 
-    host = user_config.get('benchmark', {}).get('host', '127.0.0.1')
+    host = config.get('benchmark', {}).get('host', '127.0.0.1')
     port = current_run.get('port', 2345)
-    model_path = user_config.get('model', {}).get('path', '')
-    model_name = user_config.get('model', {}).get('name', 'cpmo')
-    tokenizer_path = user_config.get('model', {}).get('tokenizer_path') or model_path
+    model_path = config.get('model', {}).get('path', '')
+    model_name = config.get('model', {}).get('name', 'model')
+    tokenizer_path = config.get('model', {}).get('tokenizer_path') or model_path
+    tensor_parallel_size = config.get('model', {}).get('tensor_parallel_size', 8)
 
     input_len = scenario.get('input_len', 1024)
     output_len = scenario.get('output_len', 1024)
@@ -180,7 +167,7 @@ def build_benchmark_command(scenario: dict, tool_config: dict, user_config: dict
         # 使用 throughput 模式
         cmd = [
             'vllm', 'bench', 'throughput',
-            '--tensor-parallel-size', str(user_config.get('model', {}).get('tensor_parallel_size', 8)),
+            '--tensor-parallel-size', str(tensor_parallel_size),
             '--model', model_path,
             '--tokenizer', tokenizer_path,
             '--dataset-name', 'random',
@@ -211,24 +198,24 @@ def build_benchmark_command(scenario: dict, tool_config: dict, user_config: dict
     return cmd
 
 
-def run_benchmark(scenario: dict, run_id: int, tool_config: dict, user_config: dict):
+def run_benchmark(scenario: dict, run_id: int, config: dict):
     """运行单个基准测试"""
     name = scenario.get('name', 'unknown')
     input_len = scenario.get('input_len', 1024)
     output_len = scenario.get('output_len', 1024)
     concurrency = scenario.get('concurrency', 100)
 
-    current_run = tool_config.get('current_run', {})
+    current_run = config.get('current_run', {})
     nsys_profile = current_run.get('nsys_profile', False)
     torch_profile = current_run.get('torch_profile', False)
-    num_runs = user_config.get('benchmark', {}).get('num_runs', 4)
+    num_runs = config.get('benchmark', {}).get('num_runs', 4)
 
     # 获取日志目录
-    log_dir = Path(tool_config.get('paths', {}).get('log_dir', 'results/bench-logs'))
+    log_dir = Path(config.get('paths', {}).get('log_dir', 'results/bench-logs'))
     log_dir.mkdir(parents=True, exist_ok=True)
     log_file = log_dir / f"{name}_run{run_id}.log"
 
-    cmd = build_benchmark_command(scenario, tool_config, user_config)
+    cmd = build_benchmark_command(scenario, config)
 
     timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     print(f"\n[{timestamp}] Starting scenario: {name} (Run {run_id})")
@@ -245,7 +232,7 @@ def run_benchmark(scenario: dict, run_id: int, tool_config: dict, user_config: d
             print("Start nsys profiling...")
             torch.cuda.profiler.start()
         elif torch_profile:
-            torch_report_dir = Path(tool_config.get('paths', {}).get('torch_output_dir', 'results/torch-raw'))
+            torch_report_dir = Path(config.get('paths', {}).get('torch_output_dir', 'results/torch-raw'))
             torch_report_dir.mkdir(parents=True, exist_ok=True)
 
             mode = current_run.get('mode', 'cuda')
@@ -290,7 +277,7 @@ def run_benchmark(scenario: dict, run_id: int, tool_config: dict, user_config: d
             mode = current_run.get('mode', 'cuda')
             gems_mode = current_run.get('gems', {}).get('mode', '')
             gems_suffix = f"-{gems_mode}" if mode == 'gems' else ""
-            torch_report = Path(tool_config.get('paths', {}).get('torch_output_dir', 'results/torch-raw')) / f"report-{mode}{gems_suffix}.json"
+            torch_report = Path(config.get('paths', {}).get('torch_output_dir', 'results/torch-raw')) / f"report-{mode}{gems_suffix}.json"
             prof.export_chrome_trace(str(torch_report))
             print(f"Stop torch profiling, trace exported to: {torch_report}")
 
@@ -304,28 +291,28 @@ def main():
     print("FlagTune Benchmark Runner")
     print("=" * 60)
 
-    # 加载配置
-    tool_config = load_tool_config()
-    user_config = load_user_config()
+    # 加载配置 (仅从 tool_config.yaml)
+    config = load_config()
 
-    print(f"Mode: {tool_config.get('current_run', {}).get('mode', 'cuda')}")
-    print(f"Device: {tool_config.get('current_run', {}).get('device', 0)}")
-    print(f"Port: {tool_config.get('current_run', {}).get('port', 2345)}")
+    print(f"Mode: {config.get('current_run', {}).get('mode', 'cuda')}")
+    print(f"Device: {config.get('current_run', {}).get('device', 0)}")
+    print(f"Port: {config.get('current_run', {}).get('port', 2345)}")
+    print(f"Model: {config.get('model', {}).get('name', 'unknown')}")
 
     # 获取场景
-    scenarios = get_scenarios(user_config, tool_config)
-    num_runs = user_config.get('benchmark', {}).get('num_runs', 4)
+    scenarios = get_scenarios(config)
+    num_runs = config.get('benchmark', {}).get('num_runs', 4)
 
     print(f"\nStarting vLLM benchmark suite for {len(scenarios)} scenarios, each repeated {num_runs} times...\n")
 
     # 运行所有场景
     for scenario in scenarios:
         for run_id in range(1, num_runs + 1):
-            run_benchmark(scenario, run_id, tool_config, user_config)
+            run_benchmark(scenario, run_id, config)
 
     print("=" * 60)
     print("All scenarios and runs completed.")
-    log_dir = tool_config.get('paths', {}).get('log_dir', 'results/bench-logs')
+    log_dir = config.get('paths', {}).get('log_dir', 'results/bench-logs')
     print(f"Logs saved in: {log_dir}")
     print("=" * 60)
 
