@@ -769,10 +769,9 @@ def main() -> None:
     else:
         nsys_base = project_root / nsys_output_dir
 
-    # Look for sqlite files in nsys_base/nsys-cuda and nsys_base/nsys-gems
     # Fall back to project root if not found
-    cuda_db = nsys_base / "nsys-cuda" / "report-cuda.sqlite"
-    gems_db = nsys_base / "nsys-gems" / "report-gems-all.sqlite"
+    cuda_db = nsys_base / "report_cuda.sqlite"
+    gems_db = nsys_base / "report_gems_all.sqlite"
 
     if not cuda_db.exists():
         cuda_db = project_root / "nsys-cuda" / "report-cuda.sqlite"

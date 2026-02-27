@@ -116,6 +116,15 @@ target_ops:
   - layer_norm
 
 # ===================
+# FlagGems 配置
+# ===================
+gems:
+  # 要排除的算子列表 (传递给 flag_gems.enable 的 unused 参数)
+  # 这些算子将使用 PyTorch 原生实现而非 FlagGems 实现
+  # 示例: ["sum", "add", "mul"]
+  unuse: []
+
+# ===================
 # 路径配置
 # ===================
 paths:

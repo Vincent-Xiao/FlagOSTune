@@ -140,12 +140,22 @@ is_patched() {
 generate_patch_code() {
     cat << 'PATCH_EOF'
 import os
+import json
 if os.getenv("USE_FLAGOS") == "1":
     import flag_gems
 
     USE_GEMS_MODE = os.getenv("USE_GEMS_MODE")
     GEMS_ONCE = os.getenv("GEMS_ONCE", "True").lower() == "true"
     GEMS_SAVE_PATH = os.getenv("GEMS_SAVE_PATH")  # 完整的保存目录路径
+    GEMS_UNUSE = os.getenv("GEMS_UNUSE")  # 要排除的算子列表 (JSON 格式)
+
+    # 解析 GEMS_UNUSE 为 Python 列表
+    gems_unuse_list = []
+    if GEMS_UNUSE:
+        try:
+            gems_unuse_list = json.loads(GEMS_UNUSE)
+        except json.JSONDecodeError:
+            pass
 
     # import from FlagGems/src/flag_gems/__init__.py
     FlagGemsList=["_unique2", "_upsample_bicubic2d_aa", "abs", "abs_", "acos",
@@ -217,12 +227,18 @@ if os.getenv("USE_FLAGOS") == "1":
         kwargs = {"record": True, "once": GEMS_ONCE}
         if gems_path:
             kwargs["path"] = gems_path
+        # 如果配置了 GEMS_UNUSE，添加 unused 参数
+        if gems_unuse_list:
+            kwargs["unused"] = gems_unuse_list
         flag_gems.enable(**kwargs)
     elif USE_GEMS_MODE == "NULL":
         gems_path = _get_gems_path(f"gems-{USE_GEMS_MODE}.txt")
         kwargs = {"record": True, "once": GEMS_ONCE, "unused": FlagGemsList}
         if gems_path:
             kwargs["path"] = gems_path
+        # 如果配置了 GEMS_UNUSE，添加 unused 参数
+        if gems_unuse_list:
+            kwargs["unused"] = gems_unuse_list
         flag_gems.enable(**kwargs)
     else:
         keep_ops = [USE_GEMS_MODE] if isinstance(USE_GEMS_MODE, str) else USE_GEMS_MODE
@@ -231,6 +247,9 @@ if os.getenv("USE_FLAGOS") == "1":
         kwargs = {"record": True, "once": GEMS_ONCE, "include": keep_ops}
         if gems_path:
             kwargs["path"] = gems_path
+        # 如果配置了 GEMS_UNUSE，添加 unused 参数
+        if gems_unuse_list:
+            kwargs["unused"] = gems_unuse_list
         flag_gems.only_enable(**kwargs)
 
 PATCH_EOF

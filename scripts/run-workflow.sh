@@ -347,6 +347,15 @@ generate_env_vars() {
             config_dir="gems-config-shape"
         fi
         env_vars+=("GEMS_SAVE_PATH=\"./results/${MODEL_NAME}/${config_dir}\"")
+
+        # 读取 gems.unuse 配置并设置 GEMS_UNUSE 环境变量
+        if command -v yq &>/dev/null && [[ -f "$CONFIG_FILE" ]]; then
+            local gems_unuse
+            gems_unuse=$(yq '.gems.unuse // []' "$CONFIG_FILE" -o=json 2>/dev/null)
+            if [[ -n "$gems_unuse" && "$gems_unuse" != "null" && "$gems_unuse" != "[]" ]]; then
+                env_vars+=("GEMS_UNUSE='${gems_unuse}'")
+            fi
+        fi
     fi
 
     echo "${env_vars[*]}"
