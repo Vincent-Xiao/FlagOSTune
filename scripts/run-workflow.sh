@@ -424,7 +424,89 @@ run_benchmark() {
 
     # 使用当前 Python 解释器
     local python_exe="${Python_EXECUTABLE:-python3}"
-    $python_exe "${SCRIPT_DIR}/tools/benchmark_runner.py"
+    local benchmark_cmd="$python_exe ${SCRIPT_DIR}/tools/benchmark_runner.py"
+
+    log_info "执行命令: $benchmark_cmd"
+    eval "$benchmark_cmd"
+}
+
+# 生成 profiling 命令
+generate_profile_command() {
+    local python_exe="${Python_EXECUTABLE:-python3}"
+    local benchmark_cmd="$python_exe ${SCRIPT_DIR}/tools/benchmark_runner.py"
+
+    # 获取环境变量
+    local env_vars
+    env_vars=$(generate_env_vars)
+
+    # 构建基础环境变量前缀
+    local env_prefix="TRITON_PRINT_AUTOTUNING=1"
+    if [[ -n "$env_vars" ]]; then
+        env_prefix="$env_prefix $env_vars"
+    fi
+
+    # 构建 nsys 输出路径
+    if [[ "$NSYS_PROFILE" == "true" ]]; then
+        local nsys_output_dir
+        nsys_output_dir=$(yq '.paths.nsys_output_dir' "$TOOL_CONFIG")
+        mkdir -p "${PROJECT_ROOT}/${nsys_output_dir}"
+
+        local gems_suffix=""
+        [[ "$MODE" == "gems" ]] && gems_suffix="_${GEMS_MODE}"
+        local nsys_output="${nsys_output_dir}/report_${MODE}${gems_suffix}"
+
+        # log_info "启用 nsys profiling，输出: ${nsys_output}"
+
+        # 命令顺序: env_vars → nsys → python
+        echo "${env_prefix} nsys profile -t cuda,nvtx,osrt -o \"${nsys_output}\" --capture-range=cudaProfilerApi --capture-range-end=stop-shutdown --force-overwrite true ${benchmark_cmd}"
+    elif [[ "$TORCH_PROFILE" == "true" ]]; then
+        local torch_output_dir
+        torch_output_dir=$(yq '.paths.torch_output_dir' "$TOOL_CONFIG")
+        mkdir -p "${PROJECT_ROOT}/${torch_output_dir}"
+        # log_info "启用 torch profiling，输出目录: ${torch_output_dir}"
+
+        # torch profiling 在 benchmark_runner.py 内部处理
+        echo "${env_prefix} ${benchmark_cmd}"
+    else
+        echo "${benchmark_cmd}"
+    fi
+}
+
+# 等待 tmux 命令完成
+wait_tmux_command_done() {
+    local timeout=7200  # 2 hours timeout
+    local interval=5
+    local start_ts now_ts elapsed
+
+    start_ts=$(date +%s)
+    log_step "等待 profiling 命令完成..."
+
+    while true; do
+        # 检查 tmux 窗口中是否还有进程在运行 (除了 shell 本身)
+        local pane_pid
+        pane_pid=$(tmux list-panes -t "${TMUX_SESSION}:${TMUX_WINDOW}" -F "#{pane_pid}" 2>/dev/null | head -1)
+
+        if [[ -n "$pane_pid" ]]; then
+            # 检查是否有子进程 (除了 bash/sh/zsh)
+            local child_count
+            child_count=$(pgrep -P "$pane_pid" 2>/dev/null | wc -l | tr -d '[:space:]')
+
+            # 如果没有子进程，说明命令已完成
+            if [[ "$child_count" -eq 0 ]]; then
+                log_info "Profiling 命令已完成"
+                return 0
+            fi
+        fi
+
+        now_ts=$(date +%s)
+        elapsed=$((now_ts - start_ts))
+        if (( elapsed >= timeout )); then
+            log_error "等待 profiling 完成超时 (${timeout}s)"
+            return 1
+        fi
+
+        sleep "$interval"
+    done
 }
 
 # 单次运行
@@ -434,7 +516,38 @@ run_single() {
     # 1. 更新配置
     update_tool_config
 
-    if [[ "$REUSE_SERVER" == "true" ]]; then
+    # 检查是否启用 profiling 模式
+    if [[ "$NSYS_PROFILE" == "true" || "$TORCH_PROFILE" == "true" ]]; then
+        # Profiling 模式: 在 tmux 中运行 vllm bench throughput
+        log_info "Profiling 模式: 使用 vllm bench throughput (内置服务器)"
+
+        # 应用补丁 (gems 模式需要)
+        apply_vllm_patch
+
+        # 生成 profiling 命令
+        local profile_cmd
+        profile_cmd=$(generate_profile_command)
+        log_info "Profiling 命令: $profile_cmd"
+
+        # 在 tmux 中启动 profiling
+        ensure_tmux_session
+        cd "$PROJECT_ROOT"
+
+        # 获取当前 conda 环境激活命令
+        local conda_activate=""
+        if [[ -n "${CONDA_DEFAULT_ENV:-}" ]]; then
+            conda_activate="source $(conda info --base)/etc/profile.d/conda.sh && conda activate ${CONDA_DEFAULT_ENV} && "
+        fi
+
+        local full_cmd="${conda_activate}cd $PROJECT_ROOT && $profile_cmd"
+        send_to_tmux "$full_cmd"
+
+        # 等待 profiling 完成
+        wait_tmux_command_done
+
+        # 还原补丁
+        restore_vllm_patch
+    elif [[ "$REUSE_SERVER" == "true" ]]; then
         log_info "复用模式: 跳过服务器启动和补丁操作"
 
         # 检查服务器是否可用
@@ -445,7 +558,14 @@ run_single() {
             exit 1
         fi
         log_info "服务器已就绪: $url"
+
+        # 运行基准测试
+        run_benchmark
+
+        log_info "复用模式: 跳过服务器停止"
     else
+        # 正常模式: 启动服务器 -> 运行测试 -> 停止服务器
+
         # 2. 应用补丁
         apply_vllm_patch
 
@@ -478,14 +598,10 @@ run_single() {
             log_info "连接命令: tmux attach -t $TMUX_SESSION"
             return 0
         fi
-    fi
 
-    # 6. 运行基准测试
-    run_benchmark
+        # 6. 运行基准测试
+        run_benchmark
 
-    if [[ "$REUSE_SERVER" == "true" ]]; then
-        log_info "复用模式: 跳过服务器停止"
-    else
         # 7. 停止服务器
         log_step "停止服务器..."
         stop_tmux_program
