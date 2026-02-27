@@ -20,6 +20,7 @@
 #   --run-idle            仅启动服务器不运行测试
 #   --batch               批量模式 (逐算子运行)
 #   --reuse               复用已有服务器，不重新启动
+#   --gems-once           GEMS_ONCE 参数 (默认 true)
 #
 
 set -euo pipefail
@@ -56,6 +57,7 @@ TORCH_PROFILE=false
 RUN_IDLE=false
 BATCH_MODE=false
 REUSE_SERVER=false  # 复用已有服务器
+GEMS_ONCE=true  # GEMS_ONCE 参数
 MODEL_CONFIG=""  # 模型配置后缀，如 "deepseek-3.2"
 
 # 解析参数
@@ -101,6 +103,10 @@ parse_args() {
             --reuse)
                 REUSE_SERVER=true
                 shift
+                ;;
+            --gems-once)
+                GEMS_ONCE="$2"
+                shift 2
                 ;;
             --model)
                 MODEL_CONFIG="$2"
@@ -250,11 +256,17 @@ update_tool_config() {
     # 复制场景配置
     yq -i ".benchmark.scenarios = $(yq '.benchmark.scenarios' "$CONFIG_FILE" -o=json)" "$TOOL_CONFIG"
 
-    # 更新日志路径 (包含模型名)
-    local log_dir="${PATH_PREFIX}/bench${optimized_suffix}${nsys_suffix}${torch_suffix}_log/vllm_bench_${MODE}${gems_suffix}_logs"
-    local server_log_dir="${PATH_PREFIX}/server-logs"
-    local nsys_output_dir="${PATH_PREFIX}/nsys-raw"
-    local torch_output_dir="${PATH_PREFIX}/torch-raw"
+    # 构建 shape 后缀 (GEMS_ONCE=false 时添加)
+    local shape_suffix=""
+    if [[ "$GEMS_ONCE" == "false" ]]; then
+        shape_suffix="-shape"
+    fi
+
+    # 更新日志路径 (包含模型名和 shape 后缀)
+    local log_dir="${PATH_PREFIX}/bench${optimized_suffix}${nsys_suffix}${torch_suffix}_log${shape_suffix}/vllm_bench_${MODE}${gems_suffix}_logs"
+    local server_log_dir="${PATH_PREFIX}/server-logs${shape_suffix}"
+    local nsys_output_dir="${PATH_PREFIX}/nsys-raw${shape_suffix}"
+    local torch_output_dir="${PATH_PREFIX}/torch-raw${shape_suffix}"
     local reports_dir="${REPORT_PREFIX}"
 
     yq -i ".paths.log_dir = \"$log_dir\"" "$TOOL_CONFIG"
@@ -327,9 +339,14 @@ generate_env_vars() {
         else
             env_vars+=("USE_GEMS_MODE=\"${GEMS_MODE}\"")
         fi
-        env_vars+=("GEMS_ONCE=true")
-        # 传递模型名称用于构建 gems 配置保存路径
-        env_vars+=("GEMS_MODEL_NAME=\"${MODEL_NAME}\"")
+        env_vars+=("GEMS_ONCE=${GEMS_ONCE}")
+
+        # 构建保存路径: 根据 GEMS_ONCE 选择目录名
+        local config_dir="gems-config"
+        if [[ "$GEMS_ONCE" == "false" ]]; then
+            config_dir="gems-config-shape"
+        fi
+        env_vars+=("GEMS_SAVE_PATH=\"./results/${MODEL_NAME}/${config_dir}\"")
     fi
 
     echo "${env_vars[*]}"

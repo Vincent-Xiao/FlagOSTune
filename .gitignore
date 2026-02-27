@@ -13,6 +13,7 @@ config.yaml.*
 AGENTS.md
 FlagTuneGuidance.md
 FlagTuneAgentGuidance.md
+FlagTuneProcessingGuidance.md
 
 reports/
 results/

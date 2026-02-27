@@ -145,7 +145,7 @@ if os.getenv("USE_FLAGOS") == "1":
 
     USE_GEMS_MODE = os.getenv("USE_GEMS_MODE")
     GEMS_ONCE = os.getenv("GEMS_ONCE", "True").lower() == "true"
-    GEMS_MODEL_NAME = os.getenv("GEMS_MODEL_NAME")  # 模型名称，用于构建保存路径
+    GEMS_SAVE_PATH = os.getenv("GEMS_SAVE_PATH")  # 完整的保存目录路径
 
     # import from FlagGems/src/flag_gems/__init__.py
     FlagGemsList=["_unique2", "_upsample_bicubic2d_aa", "abs", "abs_", "acos",
@@ -205,10 +205,11 @@ if os.getenv("USE_FLAGOS") == "1":
                   "weight_norm_interface_backward", "where_scalar_other", "where_scalar_self",
                   "where_self", "where_self_out", "zeros", "zeros_like"]
 
-    # 构建保存路径: results/${model_name}/gems-config/xxx.txt
+    # 构建保存路径: GEMS_SAVE_PATH/xxx.txt
     def _get_gems_path(filename):
-        if GEMS_MODEL_NAME:
-            return f"./results/{GEMS_MODEL_NAME}/gems-config/{filename}"
+        if GEMS_SAVE_PATH:
+            os.makedirs(GEMS_SAVE_PATH, exist_ok=True)
+            return f"{GEMS_SAVE_PATH}/{filename}"
         return None
 
     if USE_GEMS_MODE == "all":
