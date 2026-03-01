@@ -38,6 +38,10 @@ log_info() { echo -e "${GREEN}[INFO]${NC} $1"; }
 log_warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
+# 补丁标记
+PATCH_START_MARKER="# >>> FLAGTUNE PATCH START >>>"
+PATCH_END_MARKER="# <<< FLAGTUNE PATCH END <<<"
+
 # 解析参数
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -98,6 +102,12 @@ restore_file() {
     local backup_file="${target_file}.bak"
 
     if [[ -f "$backup_file" ]]; then
+        # 检查备份文件是否被污染
+        if check_backup_contaminated "$backup_file"; then
+            log_warn "不执行还原操作，请手动检查备份文件"
+            return 1
+        fi
+
         cp "$backup_file" "$target_file"
         log_info "已从备份还原: $target_file"
         rm -f "$backup_file"
@@ -120,14 +130,52 @@ backup_file() {
     fi
 }
 
-# 检查是否已打补丁
+# 检查是否已打补丁 (检查标记)
 is_patched() {
     local target_file="$1"
-    grep -q "USE_FLAGOS" "$target_file" 2>/dev/null
+    grep -qF "$PATCH_START_MARKER" "$target_file" 2>/dev/null
+}
+
+# 检查备份文件是否包含补丁标记 (警告源文件可能丢失)
+check_backup_contaminated() {
+    local backup_file="$1"
+    if [[ -f "$backup_file" ]] && grep -qF "$PATCH_START_MARKER" "$backup_file" 2>/dev/null; then
+        log_warn "============================================="
+        log_warn "警告: 备份文件包含补丁标记!"
+        log_warn "这可能意味着原始源文件已丢失。"
+        log_warn "备份文件: $backup_file"
+        log_warn "============================================="
+        return 0  # 已污染
+    fi
+    return 1  # 未污染
+}
+
+# 移除已有补丁 (根据标记)
+remove_existing_patch() {
+    local target_file="$1"
+
+    if ! is_patched "$target_file"; then
+        return 0  # 没有补丁，无需移除
+    fi
+
+    log_info "检测到已有补丁，先移除旧补丁..."
+
+    # 使用 sed 删除标记之间的内容 (包括标记本身)
+    local temp_file
+    temp_file=$(mktemp)
+
+    # sed 命令: 删除从 START_MARKER 到 END_MARKER 的所有行 (包括标记行)
+    sed "/^${PATCH_START_MARKER//\//\\/}/,/^${PATCH_END_MARKER//\//\\/}/d" "$target_file" > "$temp_file"
+    mv "$temp_file" "$target_file"
+
+    log_info "已移除旧补丁"
 }
 
 # 生成补丁代码
 generate_patch_code() {
+    # 输出开始标记
+    echo "$PATCH_START_MARKER"
+    # 输出补丁代码
     cat << 'PATCH_EOF'
 import os
 import json
@@ -245,6 +293,8 @@ if os.getenv("USE_FLAGOS") == "1":
     logger.info(f"FlagGems enable with parameters: {kwargs}")
 
 PATCH_EOF
+    # 输出结束标记
+    echo "$PATCH_END_MARKER"
 }
 
 # 应用补丁 (使用搜索方式)
@@ -307,9 +357,10 @@ apply_patch_line() {
 apply_patch() {
     local target_file="$1"
 
+    # 如果已有补丁，先移除再重新应用
     if is_patched "$target_file"; then
-        log_warn "文件已打过补丁: $target_file"
-        return 0
+        log_warn "检测到已有补丁，将先移除旧补丁再应用新补丁"
+        remove_existing_patch "$target_file"
     fi
 
     case "$METHOD" in

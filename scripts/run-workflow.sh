@@ -396,6 +396,30 @@ generate_env_vars() {
 TMUX_SESSION="screen"
 TMUX_WINDOW="bench"
 
+# 获取环境激活命令 (支持 conda 和 uv/venv)
+get_env_activate_cmd() {
+    local activate_cmd=""
+
+    # 优先检测 conda 环境
+    if [[ -n "${CONDA_DEFAULT_ENV:-}" ]]; then
+        local conda_base
+        conda_base=$(conda info --base 2>/dev/null)
+        if [[ -n "$conda_base" ]]; then
+            activate_cmd="source ${conda_base}/etc/profile.d/conda.sh && conda activate ${CONDA_DEFAULT_ENV} && "
+            log_info "检测到 conda 环境: ${CONDA_DEFAULT_ENV}"
+        fi
+    # 检测 uv/venv 虚拟环境
+    elif [[ -n "${VIRTUAL_ENV:-}" ]]; then
+        local activate_script="${VIRTUAL_ENV}/bin/activate"
+        if [[ -f "$activate_script" ]]; then
+            activate_cmd="source ${activate_script} && "
+            log_info "检测到虚拟环境: ${VIRTUAL_ENV}"
+        fi
+    fi
+
+    echo "$activate_cmd"
+}
+
 ensure_tmux_session() {
     if ! command -v tmux &>/dev/null; then
         log_error "tmux 未安装"
@@ -573,13 +597,11 @@ run_single() {
         ensure_tmux_session
         cd "$PROJECT_ROOT"
 
-        # 获取当前 conda 环境激活命令
-        local conda_activate=""
-        if [[ -n "${CONDA_DEFAULT_ENV:-}" ]]; then
-            conda_activate="source $(conda info --base)/etc/profile.d/conda.sh && conda activate ${CONDA_DEFAULT_ENV} && "
-        fi
+        # 获取环境激活命令 (支持 conda 和 uv/venv)
+        local env_activate
+        env_activate=$(get_env_activate_cmd)
 
-        local full_cmd="${conda_activate}cd $PROJECT_ROOT && $profile_cmd"
+        local full_cmd="${env_activate}cd $PROJECT_ROOT && $profile_cmd"
         send_to_tmux "$full_cmd"
 
         # 等待 profiling 完成
@@ -620,18 +642,16 @@ run_single() {
         ensure_tmux_session
         cd "$PROJECT_ROOT"
 
-        # 获取当前 conda 环境激活命令
-        local conda_activate=""
-        if [[ -n "${CONDA_DEFAULT_ENV:-}" ]]; then
-            conda_activate="source $(conda info --base)/etc/profile.d/conda.sh && conda activate ${CONDA_DEFAULT_ENV} && "
-        fi
+        # 获取环境激活命令 (支持 conda 和 uv/venv)
+        local env_activate
+        env_activate=$(get_env_activate_cmd)
 
         # 生成服务端日志文件
         local server_log_file
         server_log_file=$(generate_server_log_file)
         log_info "服务端日志: $server_log_file"
 
-        local full_cmd="${conda_activate}cd $PROJECT_ROOT && TRITON_PRINT_AUTOTUNING=1 $env_vars $serve_cmd 2>&1 | tee \"$server_log_file\""
+        local full_cmd="${env_activate}cd $PROJECT_ROOT && TRITON_PRINT_AUTOTUNING=1 $env_vars $serve_cmd 2>&1 | tee \"$server_log_file\""
         send_to_tmux "$full_cmd"
 
         # 5. 等待服务器就绪
