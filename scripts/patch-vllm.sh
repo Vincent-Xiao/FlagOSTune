@@ -252,6 +252,8 @@ if os.getenv("USE_FLAGOS") == "1":
             kwargs["unused"] = gems_unuse_list
         flag_gems.only_enable(**kwargs)
 
+    logger.info(f"FlagGems enable with parameters: {kwargs}")
+
 PATCH_EOF
 }
 

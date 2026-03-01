@@ -216,8 +216,7 @@ run_nsys_workflow() {
     local export_script="${SCRIPT_DIR}/export-nsys.sh"
     if [[ -f "$export_script" ]]; then
         # 传递 nsys 目录参数
-        echo 1
-        # bash "$export_script" --dir "$nsys_output_dir"
+        bash "$export_script" --dir "$nsys_output_dir"
     else
         log_warn "export-nsys.sh 不存在，跳过导出步骤"
     fi

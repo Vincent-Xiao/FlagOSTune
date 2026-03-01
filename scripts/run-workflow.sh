@@ -295,6 +295,37 @@ restore_vllm_patch() {
     "${SCRIPT_DIR}/restore-vllm.sh" 2>/dev/null || true
 }
 
+# 生成服务端日志文件路径
+generate_server_log_file() {
+    local server_log_dir
+    server_log_dir=$(yq '.paths.server_log_dir' "$TOOL_CONFIG")
+
+    # 构建后缀
+    local gems_suffix=""
+    [[ "$MODE" == "gems" ]] && gems_suffix="_${GEMS_MODE}"
+
+    local optimized_suffix=""
+    [[ "$OPTIMIZED" == "true" ]] && optimized_suffix="_optimized"
+
+    local nsys_suffix=""
+    [[ "$NSYS_PROFILE" == "true" ]] && nsys_suffix="_nsys_profile"
+
+    local torch_suffix=""
+    [[ "$TORCH_PROFILE" == "true" ]] && torch_suffix="_torch_profile"
+
+    # 构建 shape 后缀 (GEMS_ONCE=false 时添加)
+    local shape_suffix=""
+    if [[ "$GEMS_ONCE" == "false" ]]; then
+        shape_suffix="-shape"
+    fi
+
+    # 创建目录
+    mkdir -p "${PROJECT_ROOT}/${server_log_dir}"
+
+    # 返回日志文件路径
+    echo "${PROJECT_ROOT}/${server_log_dir}/vllm_bench_${MODE}${gems_suffix}${optimized_suffix}${nsys_suffix}${torch_suffix}${shape_suffix}_server.log"
+}
+
 # 生成 vllm serve 命令
 generate_serve_command() {
     local cmd="vllm serve ${MODEL_PATH}"
@@ -595,7 +626,12 @@ run_single() {
             conda_activate="source $(conda info --base)/etc/profile.d/conda.sh && conda activate ${CONDA_DEFAULT_ENV} && "
         fi
 
-        local full_cmd="${conda_activate}cd $PROJECT_ROOT && TRITON_PRINT_AUTOTUNING=1 $env_vars $serve_cmd"
+        # 生成服务端日志文件
+        local server_log_file
+        server_log_file=$(generate_server_log_file)
+        log_info "服务端日志: $server_log_file"
+
+        local full_cmd="${conda_activate}cd $PROJECT_ROOT && TRITON_PRINT_AUTOTUNING=1 $env_vars $serve_cmd 2>&1 | tee \"$server_log_file\""
         send_to_tmux "$full_cmd"
 
         # 5. 等待服务器就绪
