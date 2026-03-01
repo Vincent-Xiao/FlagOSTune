@@ -72,34 +72,24 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# 检测 site-packages 路径
-detect_site_packages() {
-    python3 -c "import site; print(site.getsitepackages()[0])" 2>/dev/null || {
-        log_error "无法检测 site-packages 路径"
+# 通过 __file__ 定位 vllm 模块路径
+detect_vllm_paths() {
+    python3 -c "
+import vllm
+import os
+
+vllm_dir = os.path.dirname(vllm.__file__)
+gpu_runner = os.path.join(vllm_dir, 'v1', 'worker', 'gpu_model_runner.py')
+site_packages = os.path.dirname(vllm_dir)
+
+if not os.path.isfile(gpu_runner):
+    raise FileNotFoundError(f'gpu_model_runner.py not found at {gpu_runner}')
+
+print(f'{site_packages}|{gpu_runner}')
+" 2>/dev/null || {
+        log_error "无法定位 vllm 模块，请确认 vllm 已安装"
         exit 1
     }
-}
-
-# 查找 gpu_model_runner.py
-find_gpu_model_runner() {
-    local site_packages="$1"
-    local gpu_runner="${site_packages}/vllm/v1/worker/gpu_model_runner.py"
-
-    if [[ -f "$gpu_runner" ]]; then
-        echo "$gpu_runner"
-        return 0
-    fi
-
-    # 尝试其他可能的位置
-    for path in "${site_packages}/vllm/v1/worker/gpu_model_runner.py"; do
-        if [[ -f "$path" ]]; then
-            echo "$path"
-            return 0
-        fi
-    done
-
-    log_error "找不到 gpu_model_runner.py"
-    return 1
 }
 
 # 还原原始文件
@@ -351,13 +341,15 @@ update_tool_config() {
 
 # 主函数
 main() {
-    # 检测路径
-    local site_packages
-    site_packages=$(detect_site_packages)
-    log_info "检测到 site-packages: $site_packages"
+    # 通过 __file__ 定位 vllm 模块路径
+    local paths
+    paths=$(detect_vllm_paths)
 
-    local gpu_runner
-    gpu_runner=$(find_gpu_model_runner "$site_packages")
+    local site_packages gpu_runner
+    site_packages=$(echo "$paths" | cut -d'|' -f1)
+    gpu_runner=$(echo "$paths" | cut -d'|' -f2)
+
+    log_info "检测到 site-packages: $site_packages"
     log_info "找到 gpu_model_runner.py: $gpu_runner"
 
     # 更新配置
