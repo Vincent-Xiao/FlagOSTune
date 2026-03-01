@@ -30,6 +30,8 @@ serve:
   tokenizer_mode: auto
   tool_call_parser: null
   reasoning_parser: null
+  # 模型加载格式 (auto|dummy|...)，dummy可跳过模型下载
+  load_format: auto
   # 额外参数 (将直接传递给 vllm serve)
   extra_args: ""
 

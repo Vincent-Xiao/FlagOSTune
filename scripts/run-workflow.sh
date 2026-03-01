@@ -334,7 +334,7 @@ generate_serve_command() {
     cmd+=" --served-model-name ${MODEL_NAME}"
 
     # 从配置读取服务参数
-    local gpu_mem_util trust_remote reasoning_parser
+    local gpu_mem_util trust_remote reasoning_parser load_format
     gpu_mem_util=$(yq '.serve.gpu_memory_utilization' "$CONFIG_FILE")
     trust_remote=$(yq '.serve.trust_remote_code' "$CONFIG_FILE")
     tokenizer_mode=$(yq '.serve.tokenizer_mode // ""' "$CONFIG_FILE")
@@ -342,6 +342,7 @@ generate_serve_command() {
     tool_call_parser=$(yq '.serve.tool_call_parser // ""' "$CONFIG_FILE")
     max_batched_tokens=$(yq '.serve.max_num_batched_tokens // ""' "$CONFIG_FILE")
     max_seqs=$(yq '.serve.max_num_seqs // ""' "$CONFIG_FILE")
+    load_format=$(yq '.serve.load_format // "auto"' "$CONFIG_FILE")
     extra_args=$(yq '.serve.extra_args // ""' "$CONFIG_FILE")
 
     [[ -n "$gpu_mem_util" && "$gpu_mem_util" != "null" ]] && cmd+=" --gpu_memory_utilization $gpu_mem_util"
@@ -351,6 +352,7 @@ generate_serve_command() {
     [[ -n "$tool_call_parser" && "$tool_call_parser" != "null" ]] && cmd+=" --tool-call-parser $tool_call_parser"
     [[ -n "$max_batched_tokens" && "$max_batched_tokens" != "null" ]] && cmd+=" --max-num-batched-tokens $max_batched_tokens"
     [[ -n "$max_seqs" && "$max_seqs" != "null" ]] && cmd+=" --max-num-seqs $max_seqs"
+    [[ -n "$load_format" && "$load_format" != "null" && "$load_format" != "auto" ]] && cmd+=" --load-format $load_format"
     [[ -n "$extra_args" && "$extra_args" != "null" ]] && cmd+=" $extra_args"
 
     echo "$cmd"
