@@ -5,6 +5,7 @@
 # 用法:
 #   ./auto-processing.sh --model qwen-3.5 --optimized
 #   ./auto-processing.sh --model qwen-3.5 --nsys
+#   ./auto-processing.sh --model qwen-3.5 --nsys --skip-export
 #   ./auto-processing.sh --model qwen-3.5 --shape
 #   ./auto-processing.sh --model qwen-3.5 --all
 #
@@ -12,6 +13,7 @@
 #   --model NAME          使用 config.yaml.NAME 作为配置文件
 #   --optimized           运行基准测试统计 (bench -f optimized)
 #   --nsys                运行 Nsys 性能分析
+#   --skip-export         与 --nsys 配合使用，跳过 nsys 导出步骤
 #   --shape               运行 Shape 分析
 #   --all                 依次运行 shape → optimized → nsys
 #
@@ -39,6 +41,7 @@ log_section() { echo -e "\n${CYAN}========================================${NC}"
 # 默认参数
 MODEL_CONFIG=""
 MODE=""
+SKIP_EXPORT=false
 
 # 解析参数
 parse_args() {
@@ -56,6 +59,10 @@ parse_args() {
                 MODE="nsys"
                 shift
                 ;;
+            --skip-export)
+                SKIP_EXPORT=true
+                shift
+                ;;
             --shape)
                 MODE="shape"
                 shift
@@ -65,7 +72,7 @@ parse_args() {
                 shift
                 ;;
             -h|--help)
-                head -23 "$0" | tail -21
+                head -25 "$0" | tail -23
                 exit 0
                 ;;
             *)
@@ -116,8 +123,13 @@ run_nsys() {
     local base_args
     base_args=$(build_base_args)
 
+    local skip_args=""
+    if [[ "$SKIP_EXPORT" == true ]]; then
+        skip_args="--skip-export"
+    fi
+
     log_step "分析 Nsys 性能数据"
-    "${SCRIPT_DIR}/run-processing.sh" --workflow nsys $base_args
+    "${SCRIPT_DIR}/run-processing.sh" --workflow nsys $base_args $skip_args
 
     log_info "Nsys 分析完成"
 }
@@ -158,6 +170,9 @@ main() {
     log_info "FlagTune 一键数据处理"
     log_info "模型: $MODEL_CONFIG"
     log_info "模式: $MODE"
+    if [[ "$MODE" == "nsys" && "$SKIP_EXPORT" == true ]]; then
+        log_info "跳过导出: 是"
+    fi
 
     cd "$PROJECT_ROOT"
 

@@ -5,6 +5,7 @@
 # 用法:
 #   ./run-processing.sh --workflow bench -f optimized
 #   ./run-processing.sh --workflow nsys --model qwen-3.5
+#   ./run-processing.sh --workflow nsys --model qwen-3.5 --skip-export
 #   ./run-processing.sh --workflow shape
 #   ./run-processing.sh --workflow all --model qwen-3.5
 #
@@ -12,6 +13,7 @@
 #   --workflow bench|nsys|shape|all  工作流选择
 #   --model NAME                     使用 config.yaml.NAME 作为配置文件
 #   -f FILENAME                      基准测试模式 (optimized 或空)
+#   --skip-export                    跳过 nsys 导出步骤 (仅 nsys 工作流)
 #
 
 set -euo pipefail
@@ -41,6 +43,7 @@ log_step() { echo -e "${BLUE}[STEP]${NC} $1"; }
 WORKFLOW=""
 MODEL_CONFIG=""
 FILENAME=""
+SKIP_EXPORT=false
 
 # 解析参数
 parse_args() {
@@ -58,8 +61,12 @@ parse_args() {
                 FILENAME="$2"
                 shift 2
                 ;;
+            --skip-export)
+                SKIP_EXPORT=true
+                shift
+                ;;
             -h|--help)
-                head -25 "$0" | tail -23
+                head -27 "$0" | tail -25
                 exit 0
                 ;;
             *)
@@ -212,28 +219,32 @@ run_nsys_workflow() {
     local nsys_output_dir="${paths_results}/${model_name}/nsys-raw"
 
     # 1. 导出 nsys 结果
-    log_info "步骤 1/2: 导出 Nsys 结果..."
-    local export_script="${SCRIPT_DIR}/export-nsys.sh"
-    if [[ -f "$export_script" ]]; then
-        # 传递 nsys 目录参数
-        bash "$export_script" --dir "$nsys_output_dir"
+    if [[ "$SKIP_EXPORT" == true ]]; then
+        log_info "步骤 1/2: 跳过 Nsys 导出 (--skip-export)"
     else
-        log_warn "export-nsys.sh 不存在，跳过导出步骤"
+        log_info "步骤 1/2: 导出 Nsys 结果..."
+        local export_script="${SCRIPT_DIR}/export-nsys.sh"
+        if [[ -f "$export_script" ]]; then
+            # 传递 nsys 目录参数
+            bash "$export_script" --dir "$nsys_output_dir"
+        else
+            log_warn "export-nsys.sh 不存在，跳过导出步骤"
+        fi
     fi
 
     # 2. 运行性能分析
     log_info "步骤 2/2: 运行性能分析..."
     local python_exe="${Python_EXECUTABLE:-python3}"
-    local perf_script="${SCRIPT_DIR}/tools/perf_analysis_all.py"
+    local perf_script="${SCRIPT_DIR}/tools/perf_analysis.py"
 
     if [[ ! -f "$perf_script" ]]; then
         log_error "脚本不存在: $perf_script"
         exit 1
     fi
 
-    log_info "运行: $python_exe $perf_script --nsys-dir $nsys_output_dir"
+    log_info "运行: $python_exe $perf_script --nsys_path $nsys_output_dir"
     cd "$PROJECT_ROOT"
-    $python_exe "$perf_script" --nsys-dir "$nsys_output_dir"
+    $python_exe "$perf_script" --nsys_path "$nsys_output_dir"
 
     log_info "Nsys 分析完成"
 }

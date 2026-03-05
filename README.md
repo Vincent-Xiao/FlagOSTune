@@ -165,7 +165,7 @@ paths:
 ./scripts/export-nsys.sh
 
 # 性能分析
-python processing/perf_analysis_all.py
+python scripts/tools/perf_analysis.py --nsys_path nsys-raw
 ```
 
 ---

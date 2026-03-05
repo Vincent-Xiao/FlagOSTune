@@ -2,11 +2,11 @@
 """FlagGems vs CUDA kernel性能对比分析
 
 输入:
-- --nsys_path 指向包含 report-cuda.sqlite 和 report-gems-all.sqlite 的目录
+- --nsys_path: 包含 report-cuda.sqlite 和 report-gems-all.sqlite 的目录
 - 未指定时兼容旧路径: nsys-cuda/report-cuda.sqlite + nsys-gems/report-gems-all.sqlite
 
 输出:
-- --output_path 指定报告输出目录
+- --output_path: 报告输出目录
 - 未指定时兼容旧路径: reports/ 与 processing/
 """
 
@@ -21,6 +21,23 @@ from pathlib import Path
 from typing import Dict, List, Set
 
 from openpyxl import Workbook
+
+
+def resolve_path(root: Path, path_value: str) -> Path:
+    """解析路径，支持相对路径和绝对路径"""
+    path = Path(path_value)
+    if path.is_absolute():
+        return path
+    return root / path
+
+
+def first_existing_file(base_dir: Path, candidates: List[str]) -> Path:
+    """返回第一个存在的文件，如果都不存在则返回第一个候选"""
+    paths = [base_dir / name for name in candidates]
+    for file_path in paths:
+        if file_path.exists():
+            return file_path
+    return paths[0]
 
 
 @dataclass(frozen=True)
@@ -81,38 +98,6 @@ def infer_aten_op(kernel_name: str) -> str:
         return "triton::fused_reduction"
     if lower == "fused_moe_kernel":
         return "vllm::fused_moe"
-    if lower == "marlin":
-        return "vllm::marlin"
-    if lower == "gptq_marlin_repack_kernel":
-        return "vllm::gptq_marlin_repack"
-    if lower == "grouped_topk_fused_kernel":
-        return "vllm::grouped_topk"
-    if lower in {"topkperrowdecode", "topkperrowprefill"}:
-        return "vllm::topk"
-    if lower == "concat_and_cache_mla_kernel":
-        return "vllm::concat_and_cache_mla"
-    if lower == "kern_precompute_indices":
-        return "vllm::precompute_indices"
-    if lower == "delaystreamkernel":
-        return "vllm::delay_stream"
-    if lower == "doactivationkernel":
-        return "vllm::activation"
-    if lower == "finalizemoeroutingkernel":
-        return "vllm::moe_routing"
-    if lower == "indexer_k_quant_and_cache_kernel":
-        return "vllm::k_quant_and_cache"
-    if lower == "per_token_group_quant_8bit_kernel":
-        return "vllm::per_token_quant_8bit"
-    if lower == "scale_1x128_kernel":
-        return "vllm::scale"
-    if lower in {"sm90_fp8_mqa_logits", "sm90_fp8_paged_mqa_logits"}:
-        return "vllm::fp8_mqa_logits"
-    if lower == "smxx_paged_mqa_logits_metadata":
-        return "vllm::paged_mqa_metadata"
-    if lower == "sparse_attn_fwd_kernel":
-        return "vllm::sparse_attention"
-    if lower in {"devicescaninitkernel", "devicescankernel"}:
-        return "aten::scan"
     if lower == "topkgating":
         return "vllm::topk_gating"
     if lower == "moe_align_block_size_kernel":
@@ -131,18 +116,8 @@ def infer_aten_op(kernel_name: str) -> str:
         return "vllm::sweep"
     if lower.startswith("sum_dim_kernel"):
         return "aten::sum"
-    if lower == "eye_kernel":
-        return "aten::eye"
     if lower.startswith("fill_scalar_func_kernel"):
         return "aten::fill_"
-    if lower.startswith("clamp_func_kernel"):
-        return "aten::clamp"
-    if lower.startswith("polar_kernel"):
-        return "aten::polar"
-    if lower.startswith("rem_ts_kernel"):
-        return "aten::remainder"
-    if lower.startswith("uniform_kernel"):
-        return "aten::uniform"
     if lower.startswith("sigmoid_forward"):
         return "aten::sigmoid"
     if lower.startswith("_index_put_jit_function"):
@@ -195,8 +170,6 @@ def infer_aten_op(kernel_name: str) -> str:
         return "aten::sum"
     if lower.startswith("reciprocal_func"):
         return "aten::reciprocal"
-    if lower == "transpose_fp32":
-        return "aten::transpose"
 
     rules = [
         ("all_reduce", "aten::all_reduce"),
@@ -553,78 +526,36 @@ def build_compare_rows(
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description=(
-            "对比 CUDA 与 FlagGems 的 kernel 性能，并输出 Markdown/Excel 报告。"
-        ),
-        epilog=(
-            "示例:\n"
-            "  python processing/perf_analysis.py\n"
-            "  python processing/perf_analysis.py --nsys_path results/kimi-K2.5/nsys-raw "
-            "--output_path reports/kimi-K2.5"
-        ),
-        formatter_class=argparse.RawTextHelpFormatter,
-    )
+    parser = argparse.ArgumentParser(description="FlagGems vs CUDA kernel性能对比分析")
     parser.add_argument(
         "--nsys_path",
         type=str,
         default=None,
-        help=(
-            "nsys sqlite 输入目录（支持相对/绝对路径）。\n"
-            "目录下应包含以下任一命名组合:\n"
-            "  1) report-cuda.sqlite + report-gems-all.sqlite\n"
-            "  2) report_cuda.sqlite + report_gems_all.sqlite\n"
-            "未指定时使用默认路径:\n"
-            "  nsys-cuda/report-cuda.sqlite 和 nsys-gems/report-gems-all.sqlite"
-        ),
+        help="包含 report-cuda.sqlite 和 report-gems-all.sqlite 的目录路径",
     )
     parser.add_argument(
         "--output_path",
         type=str,
         default=None,
-        help=(
-            "报告输出目录（支持相对/绝对路径，目录不存在会自动创建）。\n"
-            "输出文件:\n"
-            "  perf_analysis.md\n"
-            "  perf_analysis.xlsx\n"
-            "  shape_analysis.md\n"
-            "  shape_analysis.xlsx\n"
-            "未指定时使用默认输出位置（reports/ 与 processing/）。"
-        ),
+        help="报告输出目录路径（会自动创建）",
     )
     return parser.parse_args()
 
 
-def resolve_path(root: Path, path_value: str) -> Path:
-    path = Path(path_value)
-    if path.is_absolute():
-        return path
-    return root / path
-
-
-def first_existing_file(base_dir: Path, candidates: List[str]) -> Path:
-    paths = [base_dir / name for name in candidates]
-    for file_path in paths:
-        if file_path.exists():
-            return file_path
-    return paths[0]
-
-
 def main() -> None:
     args = parse_args()
-    root = Path(__file__).resolve().parent.parent
+    root = Path(__file__).resolve().parent.parent.parent  # scripts/tools/ -> scripts/ -> project_root
 
+    # 确定 nsys 目录
     if args.nsys_path:
         nsys_dir = resolve_path(root, args.nsys_path)
         cuda_db = first_existing_file(nsys_dir, ["report-cuda.sqlite", "report_cuda.sqlite"])
-        gems_db = first_existing_file(
-            nsys_dir,
-            ["report-gems-all.sqlite", "report_gems_all.sqlite"],
-        )
+        gems_db = first_existing_file(nsys_dir, ["report-gems-all.sqlite", "report_gems_all.sqlite"])
     else:
-        cuda_db = root / "nsys-cuda" / "report-cuda.sqlite"
-        gems_db = root / "nsys-gems" / "report-gems-all.sqlite"
+        cuda_db = first_existing_file(root / "nsys-cuda", ["report-cuda.sqlite", "report_cuda.sqlite"])
+        gems_db = first_existing_file(root / "nsys-gems", ["report-gems-all.sqlite", "report_gems_all.sqlite"])
 
+    # 确定输出目录
     if args.output_path:
         output_dir = resolve_path(root, args.output_path)
         output_dir.mkdir(parents=True, exist_ok=True)

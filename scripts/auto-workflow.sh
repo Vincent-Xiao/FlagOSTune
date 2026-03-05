@@ -5,6 +5,8 @@
 # 用法:
 #   ./auto-workflow.sh --model qwen-3.5 --optimized
 #   ./auto-workflow.sh --model qwen-3.5 --nsys
+#   ./auto-workflow.sh --model qwen-3.5 --nsys --cuda
+#   ./auto-workflow.sh --model qwen-3.5 --nsys --gems
 #   ./auto-workflow.sh --model qwen-3.5 --shape
 #   ./auto-workflow.sh --model qwen-3.5 --all
 #
@@ -12,6 +14,8 @@
 #   --model NAME          使用 config.yaml.NAME 作为配置文件
 #   --optimized           运行优化模式 (cuda + gems)
 #   --nsys                运行 nsys profiling 模式 (cuda + gems)
+#   --cuda                与 --nsys 配合使用，仅运行 CUDA nsys
+#   --gems                与 --nsys 配合使用，仅运行 GEMS nsys
 #   --shape               运行 shape 分析模式 (gems with GEMS_ONCE=false)
 #   --all                 依次运行 shape → optimized → nsys
 #   --device N            GPU 设备 ID (默认 0)
@@ -41,6 +45,7 @@ log_section() { echo -e "\n${CYAN}========================================${NC}"
 MODEL_CONFIG=""
 DEVICE=0
 MODE=""
+NSYS_TARGET=""  # cuda, gems, or empty (both)
 
 # 解析参数
 parse_args() {
@@ -62,6 +67,14 @@ parse_args() {
                 MODE="nsys"
                 shift
                 ;;
+            --cuda)
+                NSYS_TARGET="cuda"
+                shift
+                ;;
+            --gems)
+                NSYS_TARGET="gems"
+                shift
+                ;;
             --shape)
                 MODE="shape"
                 shift
@@ -71,7 +84,7 @@ parse_args() {
                 shift
                 ;;
             -h|--help)
-                head -25 "$0" | tail -23
+                head -28 "$0" | tail -26
                 exit 0
                 ;;
             *)
@@ -126,11 +139,16 @@ run_nsys() {
     local base_args
     base_args=$(build_base_args)
 
-    log_step "1/2: CUDA NSYS Profiling"
-    "${SCRIPT_DIR}/run-workflow.sh" --mode cuda $base_args --optimized --nsys
+    # 根据 NSYS_TARGET 决定运行哪些
+    if [[ -z "$NSYS_TARGET" || "$NSYS_TARGET" == "cuda" ]]; then
+        log_step "CUDA NSYS Profiling"
+        "${SCRIPT_DIR}/run-workflow.sh" --mode cuda $base_args --optimized --nsys
+    fi
 
-    log_step "2/2: GEMS NSYS Profiling"
-    "${SCRIPT_DIR}/run-workflow.sh" --mode gems --gems-mode all $base_args --optimized --nsys
+    if [[ -z "$NSYS_TARGET" || "$NSYS_TARGET" == "gems" ]]; then
+        log_step "GEMS NSYS Profiling"
+        "${SCRIPT_DIR}/run-workflow.sh" --mode gems --gems-mode all $base_args --optimized --nsys
+    fi
 
     log_info "NSYS Profiling 模式完成"
 }
@@ -172,6 +190,9 @@ main() {
     log_info "模型: $MODEL_CONFIG"
     log_info "设备: $DEVICE"
     log_info "模式: $MODE"
+    if [[ "$MODE" == "nsys" && -n "$NSYS_TARGET" ]]; then
+        log_info "NSYS 目标: $NSYS_TARGET"
+    fi
 
     cd "$PROJECT_ROOT"
 

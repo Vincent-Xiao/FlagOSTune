@@ -2,15 +2,17 @@
 """FlagGems vs CUDA kernel性能对比分析
 
 输入:
-- nsys-cuda/report-cuda.sqlite
-- nsys-gems/report-gems-all.sqlite
+- --nsys_path 指向包含 report-cuda.sqlite 和 report-gems-all.sqlite 的目录
+- 未指定时兼容旧路径: nsys-cuda/report-cuda.sqlite + nsys-gems/report-gems-all.sqlite
 
 输出:
-- reports/perf_analysis.md
+- --output_path 指定报告输出目录
+- 未指定时兼容旧路径: reports/ 与 processing/
 """
 
 from __future__ import annotations
 
+import argparse
 import math
 import re
 import sqlite3
@@ -37,6 +39,15 @@ class AtenAggStat:
     calls: int
     total_ns: int
     avg_ns: float
+
+
+@dataclass(frozen=True)
+class MmKernelShapeStat:
+    framework_op: str
+    exec_op: str
+    input_shape: str
+    calls: int
+    total_ns: int
 
 
 def normalize_kernel_name(kernel_name: str) -> str:
@@ -70,6 +81,18 @@ def infer_aten_op(kernel_name: str) -> str:
         return "triton::fused_reduction"
     if lower == "fused_moe_kernel":
         return "vllm::fused_moe"
+    if lower == "marlin":
+        return "vllm::marlin"
+    if lower == "gptq_marlin_repack_kernel":
+        return "vllm::gptq_marlin_repack"
+    if lower == "grouped_topk_fused_kernel":
+        return "vllm::grouped_topk"
+    if lower == "concat_and_cache_mla_kernel":
+        return "vllm::concat_and_cache_mla"
+    if lower == "kern_precompute_indices":
+        return "vllm::precompute_indices"
+    if lower in {"devicescaninitkernel", "devicescankernel"}:
+        return "aten::scan"
     if lower == "topkgating":
         return "vllm::topk_gating"
     if lower == "moe_align_block_size_kernel":
@@ -90,6 +113,14 @@ def infer_aten_op(kernel_name: str) -> str:
         return "aten::sum"
     if lower.startswith("fill_scalar_func_kernel"):
         return "aten::fill_"
+    if lower.startswith("clamp_func_kernel"):
+        return "aten::clamp"
+    if lower.startswith("polar_kernel"):
+        return "aten::polar"
+    if lower.startswith("rem_ts_kernel"):
+        return "aten::remainder"
+    if lower.startswith("uniform_kernel"):
+        return "aten::uniform"
     if lower.startswith("sigmoid_forward"):
         return "aten::sigmoid"
     if lower.startswith("_index_put_jit_function"):
@@ -235,6 +266,92 @@ def query_kernel_stats(conn: sqlite3.Connection) -> List[KernelStat]:
                 calls=calls,
                 total_ns=total_ns,
                 avg_ns=avg_ns,
+            )
+        )
+
+    out.sort(key=lambda x: x.total_ns, reverse=True)
+    return out
+
+
+def extract_input_shape(kernel_name: str) -> str:
+    lower = kernel_name.lower()
+
+    tiles = re.search(r"tilesize(\d+x\d+x\d+)", lower)
+    if tiles:
+        return tiles.group(1)
+
+    parts = kernel_name.split("_")
+    shape_parts: List[str] = []
+    for part in parts:
+        if re.fullmatch(r"\d+x\d+(x\d+)?", part):
+            shape_parts.append(part)
+
+    if shape_parts:
+        return ", ".join(shape_parts)
+
+    return "N/A"
+
+
+def query_mm_shape_stats(conn: sqlite3.Connection) -> List[MmKernelShapeStat]:
+    rows = conn.execute(
+        """
+        SELECT COALESCE(s.value, CAST(k.shortName AS TEXT)) AS kernel_name,
+               COUNT(*) AS calls,
+               SUM(k.end - k.start) AS total_ns,
+               k.gridX,
+               k.gridY,
+               k.gridZ,
+               k.blockX,
+               k.blockY,
+               k.blockZ
+        FROM CUPTI_ACTIVITY_KIND_KERNEL k
+        LEFT JOIN StringIds s ON s.id = k.shortName
+        GROUP BY k.shortName, k.gridX, k.gridY, k.gridZ, k.blockX, k.blockY, k.blockZ
+        ORDER BY total_ns DESC
+        """
+    ).fetchall()
+
+    agg: Dict[str, Dict[str, object]] = {}
+    for name, calls, total_ns, gx, gy, gz, bx, by, bz in rows:
+        exec_name = str(name)
+        normalized = normalize_kernel_name(exec_name)
+        framework_op = infer_aten_op(normalized)
+        if framework_op != "aten::mm":
+            continue
+
+        if exec_name not in agg:
+            agg[exec_name] = {
+                "framework_op": framework_op,
+                "calls": 0,
+                "total_ns": 0,
+                "shape": extract_input_shape(exec_name),
+                "launch_cfg": {},
+            }
+
+        agg[exec_name]["calls"] = int(agg[exec_name]["calls"]) + int(calls or 0)
+        agg[exec_name]["total_ns"] = int(agg[exec_name]["total_ns"]) + int(total_ns or 0)
+
+        cfg = f"grid({int(gx)},{int(gy)},{int(gz)}) block({int(bx)},{int(by)},{int(bz)})"
+        launch_cfg = agg[exec_name]["launch_cfg"]
+        if isinstance(launch_cfg, dict):
+            launch_cfg[cfg] = int(launch_cfg.get(cfg, 0)) + int(calls or 0)
+
+    out: List[MmKernelShapeStat] = []
+    for exec_name, values in agg.items():
+        shape_value = str(values["shape"])
+        if shape_value == "N/A":
+            launch_cfg = values["launch_cfg"]
+            if isinstance(launch_cfg, dict) and launch_cfg:
+                top_cfg = sorted(launch_cfg.items(), key=lambda x: x[1], reverse=True)[:2]
+                shape_value = "; ".join(cfg for cfg, _ in top_cfg)
+
+        out.append(
+            MmKernelShapeStat(
+                framework_op=str(values["framework_op"]),
+                exec_op=exec_name,
+                input_shape=shape_value,
+                calls=int(values["calls"]),
+                total_ns=int(values["total_ns"]),
             )
         )
 
@@ -411,12 +528,91 @@ def build_compare_rows(
     return rows
 
 
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description=(
+            "对比 CUDA 与 FlagGems 的 kernel 性能，并输出 Markdown/Excel 报告。"
+        ),
+        epilog=(
+            "示例:\n"
+            "  python processing/perf_analysis.py\n"
+            "  python processing/perf_analysis.py --nsys_path results/kimi-K2.5/nsys-raw "
+            "--output_path reports/kimi-K2.5"
+        ),
+        formatter_class=argparse.RawTextHelpFormatter,
+    )
+    parser.add_argument(
+        "--nsys_path",
+        type=str,
+        default=None,
+        help=(
+            "nsys sqlite 输入目录（支持相对/绝对路径）。\n"
+            "目录下应包含以下任一命名组合:\n"
+            "  1) report-cuda.sqlite + report-gems-all.sqlite\n"
+            "  2) report_cuda.sqlite + report_gems_all.sqlite\n"
+            "未指定时使用默认路径:\n"
+            "  nsys-cuda/report-cuda.sqlite 和 nsys-gems/report-gems-all.sqlite"
+        ),
+    )
+    parser.add_argument(
+        "--output_path",
+        type=str,
+        default=None,
+        help=(
+            "报告输出目录（支持相对/绝对路径，目录不存在会自动创建）。\n"
+            "输出文件:\n"
+            "  perf_analysis.md\n"
+            "  perf_analysis.xlsx\n"
+            "  shape_analysis.md\n"
+            "  shape_analysis.xlsx\n"
+            "未指定时使用默认输出位置（reports/ 与 processing/）。"
+        ),
+    )
+    return parser.parse_args()
+
+
+def resolve_path(root: Path, path_value: str) -> Path:
+    path = Path(path_value)
+    if path.is_absolute():
+        return path
+    return root / path
+
+
+def first_existing_file(base_dir: Path, candidates: List[str]) -> Path:
+    paths = [base_dir / name for name in candidates]
+    for file_path in paths:
+        if file_path.exists():
+            return file_path
+    return paths[0]
+
+
 def main() -> None:
+    args = parse_args()
     root = Path(__file__).resolve().parent.parent
-    cuda_db = root / "nsys-cuda" / "report-cuda.sqlite"
-    gems_db = root / "nsys-gems" / "report-gems-all.sqlite"
-    out_md = root / "reports" / "perf_analysis.md"
-    out_xlsx = root / "reports" / "perf_analysis.xlsx"
+
+    if args.nsys_path:
+        nsys_dir = resolve_path(root, args.nsys_path)
+        cuda_db = first_existing_file(nsys_dir, ["report-cuda.sqlite", "report_cuda.sqlite"])
+        gems_db = first_existing_file(
+            nsys_dir,
+            ["report-gems-all.sqlite", "report_gems_all.sqlite"],
+        )
+    else:
+        cuda_db = root / "nsys-cuda" / "report-cuda.sqlite"
+        gems_db = root / "nsys-gems" / "report-gems-all.sqlite"
+
+    if args.output_path:
+        output_dir = resolve_path(root, args.output_path)
+        output_dir.mkdir(parents=True, exist_ok=True)
+        out_md = output_dir / "perf_analysis.md"
+        out_xlsx = output_dir / "perf_analysis.xlsx"
+        out_shape_md = output_dir / "shape_analysis.md"
+        out_shape_xlsx = output_dir / "shape_analysis.xlsx"
+    else:
+        out_md = root / "reports" / "perf_analysis.md"
+        out_xlsx = root / "reports" / "perf_analysis.xlsx"
+        out_shape_md = root / "processing" / "shape_analysis.md"
+        out_shape_xlsx = root / "reports" / "shape_analysis.xlsx"
 
     if not cuda_db.exists() or not gems_db.exists():
         raise SystemExit(f"缺少sqlite文件: {cuda_db} 或 {gems_db}")
@@ -424,6 +620,8 @@ def main() -> None:
     with sqlite3.connect(str(cuda_db)) as cuda_conn, sqlite3.connect(str(gems_db)) as gems_conn:
         cuda_stats = query_kernel_stats(cuda_conn)
         gems_stats = query_kernel_stats(gems_conn)
+        cuda_mm_shape_stats = query_mm_shape_stats(cuda_conn)
+        gems_mm_shape_stats = query_mm_shape_stats(gems_conn)
 
     cuda_aten_stats = aggregate_by_aten(cuda_stats)
     gems_aten_stats = aggregate_by_aten(gems_stats)
@@ -515,8 +713,72 @@ def main() -> None:
     )
 
     out_md.write_text("\n".join(report), encoding="utf-8")
+
+    cuda_mm_rows: List[List[str]] = []
+    for row in cuda_mm_shape_stats:
+        cuda_mm_rows.append(
+            [
+                row.framework_op,
+                md_escape(row.exec_op),
+                row.input_shape,
+                str(row.calls),
+                fmt_ms(row.total_ns),
+                fmt_pct(row.total_ns / cuda_total_ns if cuda_total_ns else 0.0),
+            ]
+        )
+
+    gems_mm_rows: List[List[str]] = []
+    for row in gems_mm_shape_stats:
+        gems_mm_rows.append(
+            [
+                row.framework_op,
+                md_escape(row.exec_op),
+                row.input_shape,
+                str(row.calls),
+                fmt_ms(row.total_ns),
+                fmt_pct(row.total_ns / gems_total_ns if gems_total_ns else 0.0),
+            ]
+        )
+
+    shape_report: List[str] = []
+    shape_report.append("# CUDA 和 FlagGems 的 aten::mm 输入 Shape 分析")
+    shape_report.append("")
+    shape_report.append("## CUDA aten::mm 算子（按总时间排序）")
+    shape_report.append("")
+    shape_report.append(
+        md_table(
+            ["框架算子名", "执行算子名", "输入 shape", "CUDA调用次数", "CUDA总时间(ms)", "CUDA占比"],
+            cuda_mm_rows,
+        )
+    )
+    shape_report.append("")
+
+    shape_report.append("## FlagGems aten::mm 算子（按总时间排序）")
+    shape_report.append("")
+    shape_report.append(
+        md_table(
+            ["框架算子名", "执行算子名", "输入 shape", "FlagGems调用次数", "FlagGems总时间(ms)", "FlagGems占比"],
+            gems_mm_rows,
+        )
+    )
+    shape_report.append("")
+
+    out_shape_md.write_text("\n".join(shape_report), encoding="utf-8")
+
+    shape_cuda_headers = ["框架算子名", "执行算子名", "输入 shape", "CUDA调用次数", "CUDA总时间(ms)", "CUDA占比"]
+    shape_gems_headers = ["框架算子名", "执行算子名", "输入 shape", "FlagGems调用次数", "FlagGems总时间(ms)", "FlagGems占比"]
+    write_excel_tables(
+        out_shape_xlsx,
+        [
+            {"sheet_name": "CUDA_mm_shape", "headers": shape_cuda_headers, "rows": cuda_mm_rows},
+            {"sheet_name": "FlagGems_mm_shape", "headers": shape_gems_headers, "rows": gems_mm_rows},
+        ],
+    )
+
     print(f"已生成报告: {out_md}")
     print(f"已生成Excel: {out_xlsx}")
+    print(f"已生成Shape分析: {out_shape_md}")
+    print(f"已生成Shape Excel: {out_shape_xlsx}")
     print(f"CUDA kernels: {len(cuda_stats)}, FlagGems kernels: {len(gems_stats)}")
 
 
