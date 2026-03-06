@@ -21,6 +21,7 @@
 #   --batch               批量模式 (逐算子运行)
 #   --reuse               复用已有服务器，不重新启动
 #   --gems-once           GEMS_ONCE 参数 (默认 true)
+#   --custom-suffix       自定义日志路径后缀
 #
 
 set -euo pipefail
@@ -59,6 +60,7 @@ BATCH_MODE=false
 REUSE_SERVER=false  # 复用已有服务器
 GEMS_ONCE=true  # GEMS_ONCE 参数
 MODEL_CONFIG=""  # 模型配置后缀，如 "deepseek-3.2"
+CUSTOM_SUFFIX=""  # 自定义日志路径后缀
 
 # 解析参数
 parse_args() {
@@ -110,6 +112,10 @@ parse_args() {
                 ;;
             --model)
                 MODEL_CONFIG="$2"
+                shift 2
+                ;;
+            --custom-suffix)
+                CUSTOM_SUFFIX="$2"
                 shift 2
                 ;;
             -h|--help)
@@ -262,11 +268,17 @@ update_tool_config() {
         shape_suffix="-shape"
     fi
 
+    # 构建自定义后缀
+    local custom_suffix=""
+    if [[ -n "$CUSTOM_SUFFIX" ]]; then
+        custom_suffix="_${CUSTOM_SUFFIX}"
+    fi
+
     # 更新日志路径 (包含模型名和 shape 后缀)
-    local log_dir="${PATH_PREFIX}/bench${optimized_suffix}${nsys_suffix}${torch_suffix}_log${shape_suffix}/vllm_bench_${MODE}${gems_suffix}_logs"
-    local server_log_dir="${PATH_PREFIX}/server-logs${shape_suffix}"
-    local nsys_output_dir="${PATH_PREFIX}/nsys-raw${shape_suffix}"
-    local torch_output_dir="${PATH_PREFIX}/torch-raw${shape_suffix}"
+    local log_dir="${PATH_PREFIX}/bench${optimized_suffix}${nsys_suffix}${torch_suffix}_log${shape_suffix}${custom_suffix}/vllm_bench_${MODE}${gems_suffix}_logs"
+    local server_log_dir="${PATH_PREFIX}/server-logs${shape_suffix}${custom_suffix}"
+    local nsys_output_dir="${PATH_PREFIX}/nsys-raw${shape_suffix}${custom_suffix}"
+    local torch_output_dir="${PATH_PREFIX}/torch-raw${shape_suffix}${custom_suffix}"
     local reports_dir="${REPORT_PREFIX}"
 
     yq -i ".paths.log_dir = \"$log_dir\"" "$TOOL_CONFIG"
@@ -319,11 +331,17 @@ generate_server_log_file() {
         shape_suffix="-shape"
     fi
 
+    # 构建自定义后缀
+    local custom_suffix=""
+    if [[ -n "$CUSTOM_SUFFIX" ]]; then
+        custom_suffix="_${CUSTOM_SUFFIX}"
+    fi
+
     # 创建目录
     mkdir -p "${PROJECT_ROOT}/${server_log_dir}"
 
     # 返回日志文件路径
-    echo "${PROJECT_ROOT}/${server_log_dir}/vllm_bench_${MODE}${gems_suffix}${optimized_suffix}${nsys_suffix}${torch_suffix}${shape_suffix}_server.log"
+    echo "${PROJECT_ROOT}/${server_log_dir}/vllm_bench_${MODE}${gems_suffix}${optimized_suffix}${nsys_suffix}${torch_suffix}${shape_suffix}${custom_suffix}_server.log"
 }
 
 # 生成 vllm serve 命令

@@ -279,9 +279,13 @@ if os.getenv("USE_FLAGOS") == "1":
             kwargs["unused"] = gems_unuse_list
         flag_gems.enable(**kwargs)
     else:
-        keep_ops = [USE_GEMS_MODE] if isinstance(USE_GEMS_MODE, str) else USE_GEMS_MODE
-        op_name = USE_GEMS_MODE if isinstance(USE_GEMS_MODE, str) else "custom"
-        gems_path = _get_gems_path(f"gems-{op_name}-{keep_ops}.txt")
+        import ast
+        try:
+            parsed = ast.literal_eval(USE_GEMS_MODE)
+            keep_ops = parsed if isinstance(parsed, list) else [parsed]
+        except (ValueError, SyntaxError):
+            raise ValueError(f"Unable to parse USE_GEMS_MODE: {USE_GEMS_MODE}. Usage: [\"mm\",\"mm_out\"]")
+        gems_path = _get_gems_path(f"gems-{keep_ops}.txt")
         kwargs = {"record": True, "once": GEMS_ONCE, "include": keep_ops}
         if gems_path:
             kwargs["path"] = gems_path
