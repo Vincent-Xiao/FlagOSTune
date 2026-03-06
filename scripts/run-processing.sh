@@ -14,6 +14,7 @@
 #   --model NAME                     使用 config.yaml.NAME 作为配置文件
 #   -f FILENAME                      基准测试模式 (optimized 或空)
 #   --skip-export                    跳过 nsys 导出步骤 (仅 nsys 工作流)
+#   --warmup N                       跳过的预热轮数 (默认 1)
 #
 
 set -euo pipefail
@@ -44,6 +45,7 @@ WORKFLOW=""
 MODEL_CONFIG=""
 FILENAME=""
 SKIP_EXPORT=false
+WARMUP=1
 
 # 解析参数
 parse_args() {
@@ -64,6 +66,10 @@ parse_args() {
             --skip-export)
                 SKIP_EXPORT=true
                 shift
+                ;;
+            --warmup)
+                WARMUP="$2"
+                shift 2
                 ;;
             -h|--help)
                 head -27 "$0" | tail -25
@@ -201,6 +207,7 @@ run_bench_workflow() {
     if [[ -n "$FILENAME" ]]; then
         args+=("-f" "$FILENAME")
     fi
+    args+=("--warmup" "$WARMUP")
 
     log_info "运行: $python_exe $bench_script ${args[*]}"
     cd "$PROJECT_ROOT"

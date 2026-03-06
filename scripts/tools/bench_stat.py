@@ -232,6 +232,7 @@ def run_benchmark(script_path: Path, log_dir: str):
 def main():
     parser = argparse.ArgumentParser(description="Process benchmark statistics")
     parser.add_argument("-f", dest="filename", type=str, default="", help="Filename suffix for input directory and output report")
+    parser.add_argument("--warmup", type=int, default=1, help="Number of warmup rounds to skip (default: 1)")
     args = parser.parse_args()
 
     repo_root = get_project_root()
@@ -319,7 +320,9 @@ def main():
 
                 sd_map = {}
                 sd_tot_map = {}
-                for r in rows:
+                # Skip warmup rounds
+                effective_rows = rows[args.warmup:] if args.warmup > 0 else rows
+                for r in effective_rows:
                     scen = r[scen_idx]
                     if scen not in scenarios_order:
                         scenarios_order.append(scen)

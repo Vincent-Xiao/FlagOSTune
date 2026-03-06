@@ -275,8 +275,8 @@ update_tool_config() {
     fi
 
     # 更新日志路径 (包含模型名和 shape 后缀)
-    local log_dir="${PATH_PREFIX}/bench${optimized_suffix}${nsys_suffix}${torch_suffix}_log${shape_suffix}${custom_suffix}/vllm_bench_${MODE}${gems_suffix}_logs"
-    local server_log_dir="${PATH_PREFIX}/server-logs${shape_suffix}${custom_suffix}"
+    local log_dir="${PATH_PREFIX}/bench${optimized_suffix}${nsys_suffix}${torch_suffix}_log${shape_suffix}/vllm_bench_${MODE}${gems_suffix}${custom_suffix}_logs"
+    local server_log_dir="${PATH_PREFIX}/server-logs${shape_suffix}"
     local nsys_output_dir="${PATH_PREFIX}/nsys-raw${shape_suffix}${custom_suffix}"
     local torch_output_dir="${PATH_PREFIX}/torch-raw${shape_suffix}${custom_suffix}"
     local reports_dir="${REPORT_PREFIX}"
