@@ -18,6 +18,7 @@ FlagTuneProcessingGuidance.md
 reports/
 results/
 gems-config/
+processing/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
