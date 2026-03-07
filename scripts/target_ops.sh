@@ -32,13 +32,9 @@ load_ops_from_config() {
         return 1
     fi
 
-    if command -v yq &>/dev/null; then
-        # 使用 yq 解析 YAML
-        mapfile -t OPS < <(yq '.target_ops[]' "$config_file" 2>/dev/null)
-        export OPS
-    else
-        echo "警告: yq 未安装，使用默认算子列表" >&2
-    fi
+    # 使用 yq 解析 YAML
+    mapfile -t OPS < <(yq '.target_ops[]' "$config_file" 2>/dev/null)
+    export OPS
 }
 
 # 打印当前算子列表

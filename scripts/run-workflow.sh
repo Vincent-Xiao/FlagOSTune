@@ -47,6 +47,12 @@ log_warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 log_step() { echo -e "${BLUE}[STEP]${NC} $1"; }
 
+# Check for yq
+if ! command -v yq &>/dev/null; then
+    log_error "yq 未安装，请先运行: ./scripts/setup-deps.sh"
+    exit 1
+fi
+
 # 默认参数
 MODE="cuda"
 DEVICE=0
@@ -160,11 +166,6 @@ check_dependencies() {
         command -v "$cmd" &>/dev/null || missing+=("$cmd")
     done
 
-    # yq 是可选的，但强烈推荐
-    if ! command -v yq &>/dev/null; then
-        log_warn "yq 未安装，将使用内置简单 YAML 解析器"
-    fi
-
     if [[ ${#missing[@]} -gt 0 ]]; then
         log_error "缺少必需依赖: ${missing[*]}"
         log_info "请运行: ./scripts/setup-deps.sh"
@@ -175,36 +176,31 @@ check_dependencies() {
 # 读取配置
 read_config() {
     # 读取模型配置
-    if command -v yq &>/dev/null; then
-        MODEL_PATH=$(yq '.model.path' "$CONFIG_FILE")
-        MODEL_NAME=$(yq '.model.name' "$CONFIG_FILE")
-        TENSOR_PARALLEL=$(yq '.serve.tensor_parallel_size // .model.tensor_parallel_size' "$CONFIG_FILE")
-        PORT_BASE=$(yq '.benchmark.port_base' "$CONFIG_FILE")
-        NUM_RUNS=$(yq '.benchmark.num_runs' "$CONFIG_FILE")
+    MODEL_PATH=$(yq '.model.path' "$CONFIG_FILE")
+    MODEL_NAME=$(yq '.model.name' "$CONFIG_FILE")
+    TENSOR_PARALLEL=$(yq '.serve.tensor_parallel_size // .model.tensor_parallel_size' "$CONFIG_FILE")
+    PORT_BASE=$(yq '.benchmark.port_base' "$CONFIG_FILE")
+    NUM_RUNS=$(yq '.benchmark.num_runs' "$CONFIG_FILE")
 
-        # 读取路径配置
-        PATHS_RESULTS=$(yq '.paths.results // "results"' "$CONFIG_FILE")
-        PATHS_REPORTS=$(yq '.paths.reports // "reports"' "$CONFIG_FILE")
-        PATHS_USE_MODEL_NAME=$(yq '.paths.use_model_name // true' "$CONFIG_FILE")
+    # 读取路径配置
+    PATHS_RESULTS=$(yq '.paths.results // "results"' "$CONFIG_FILE")
+    PATHS_REPORTS=$(yq '.paths.reports // "reports"' "$CONFIG_FILE")
+    PATHS_USE_MODEL_NAME=$(yq '.paths.use_model_name // true' "$CONFIG_FILE")
 
-        # 构建带模型名的路径前缀
-        if [[ "$PATHS_USE_MODEL_NAME" == "true" ]]; then
-            PATH_PREFIX="${PATHS_RESULTS}/${MODEL_NAME}"
-            REPORT_PREFIX="${PATHS_REPORTS}/${MODEL_NAME}"
-        else
-            PATH_PREFIX="${PATHS_RESULTS}"
-            REPORT_PREFIX="${PATHS_REPORTS}"
-        fi
-
-        # 读取场景配置
-        if [[ "$OPTIMIZED" == "true" ]]; then
-            SCENARIO_TYPE="optimized"
-        else
-            SCENARIO_TYPE="full"
-        fi
+    # 构建带模型名的路径前缀
+    if [[ "$PATHS_USE_MODEL_NAME" == "true" ]]; then
+        PATH_PREFIX="${PATHS_RESULTS}/${MODEL_NAME}"
+        REPORT_PREFIX="${PATHS_REPORTS}/${MODEL_NAME}"
     else
-        log_error "需要 yq 来解析配置文件"
-        exit 1
+        PATH_PREFIX="${PATHS_RESULTS}"
+        REPORT_PREFIX="${PATHS_REPORTS}"
+    fi
+
+    # 读取场景配置
+    if [[ "$OPTIMIZED" == "true" ]]; then
+        SCENARIO_TYPE="optimized"
+    else
+        SCENARIO_TYPE="full"
     fi
 
     PORT=$((PORT_BASE + DEVICE))
@@ -405,7 +401,7 @@ generate_env_vars() {
         env_vars+=("GEMS_SAVE_PATH=\"./results/${MODEL_NAME}/${config_dir}\"")
 
         # 读取 gems.unuse 配置并设置 GEMS_UNUSE 环境变量
-        if command -v yq &>/dev/null && [[ -f "$CONFIG_FILE" ]]; then
+        if [[ -f "$CONFIG_FILE" ]]; then
             local gems_unuse
             gems_unuse=$(yq '.gems.unuse // []' "$CONFIG_FILE" -o=json 2>/dev/null)
             if [[ -n "$gems_unuse" && "$gems_unuse" != "null" && "$gems_unuse" != "[]" ]]; then

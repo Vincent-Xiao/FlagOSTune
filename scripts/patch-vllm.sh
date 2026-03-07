@@ -386,12 +386,8 @@ update_tool_config() {
     local site_packages="$1"
     local gpu_runner="$2"
 
-    if command -v yq &>/dev/null; then
-        yq -i ".vllm.site_packages = \"$site_packages\"" "$TOOL_CONFIG"
-        yq -i ".vllm.gpu_model_runner = \"$gpu_runner\"" "$TOOL_CONFIG"
-    else
-        log_warn "yq 未安装，跳过更新 tool_config.yaml"
-    fi
+    yq -i ".vllm.site_packages = \"$site_packages\"" "$TOOL_CONFIG"
+    yq -i ".vllm.gpu_model_runner = \"$gpu_runner\"" "$TOOL_CONFIG"
 }
 
 # 主函数

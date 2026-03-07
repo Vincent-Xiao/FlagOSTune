@@ -71,7 +71,7 @@ main() {
 
     # 从 tool_config.yaml 获取路径
     local gpu_runner=""
-    if [[ -f "$TOOL_CONFIG" ]] && command -v yq &>/dev/null; then
+    if [[ -f "$TOOL_CONFIG" ]]; then
         gpu_runner=$(yq '.vllm.gpu_model_runner' "$TOOL_CONFIG" 2>/dev/null)
     fi
 

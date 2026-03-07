@@ -14,12 +14,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-# 尝试导入 yaml，如果没有则使用简单的解析
-try:
-    import yaml
-    HAS_YAML = True
-except ImportError:
-    HAS_YAML = False
+import yaml
 
 # 尝试导入 torch
 try:
@@ -44,90 +39,8 @@ def load_config() -> dict:
         print(f"[ERROR] 配置文件不存在: {config_path}")
         sys.exit(1)
 
-    if HAS_YAML:
-        with open(config_path) as f:
-            return yaml.safe_load(f)
-    else:
-        # 简单的 YAML 解析
-        return parse_simple_yaml(config_path)
-
-
-def parse_simple_yaml(filepath: Path) -> dict:
-    """简单的 YAML 解析器 (仅支持基本结构)"""
-    result = {}
-    current_section = None
-    current_subsection = None
-
-    with open(filepath) as f:
-        for line in f:
-            line = line.rstrip()
-
-            # 跳过空行和注释
-            if not line or line.startswith('#'):
-                continue
-
-            # 计算缩进
-            indent = len(line) - len(line.lstrip())
-            line = line.strip()
-
-            if indent == 0 and ':' in line:
-                # 顶级 section
-                key = line.rstrip(':')
-                result[key] = {}
-                current_section = key
-                current_subsection = None
-            elif indent == 2 and ':' in line and current_section:
-                # 子 section
-                key = line.rstrip(':')
-                if isinstance(result[current_section], dict):
-                    result[current_section][key] = {}
-                    current_subsection = key
-            elif indent >= 4 and ':' in line and current_section:
-                # 键值对
-                key, _, value = line.partition(':')
-                key = key.strip()
-                value = value.strip()
-
-                # 解析值
-                parsed_value = parse_yaml_value(value)
-
-                if current_subsection and isinstance(result[current_section].get(current_subsection), dict):
-                    result[current_section][current_subsection][key] = parsed_value
-                elif isinstance(result[current_section], dict):
-                    result[current_section][key] = parsed_value
-
-    return result
-
-
-def parse_yaml_value(value: str) -> Any:
-    """解析 YAML 值"""
-    if not value:
-        return None
-
-    # 移除引号
-    if (value.startswith('"') and value.endswith('"')) or \
-       (value.startswith("'") and value.endswith("'")):
-        return value[1:-1]
-
-    # 布尔值
-    if value.lower() == 'true':
-        return True
-    if value.lower() == 'false':
-        return False
-
-    # null
-    if value.lower() in ('null', '~', ''):
-        return None
-
-    # 数字
-    try:
-        if '.' in value:
-            return float(value)
-        return int(value)
-    except ValueError:
-        pass
-
-    return value
+    with open(config_path) as f:
+        return yaml.safe_load(f)
 
 
 def get_scenarios(config: dict) -> list:

@@ -40,6 +40,12 @@ log_warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 log_step() { echo -e "${BLUE}[STEP]${NC} $1"; }
 
+# Check for yq
+if ! command -v yq &>/dev/null; then
+    log_error "yq 未安装，请先运行: ./scripts/setup-deps.sh"
+    exit 1
+fi
+
 # 默认参数
 WORKFLOW=""
 MODEL_CONFIG=""
@@ -111,11 +117,6 @@ check_dependencies() {
         command -v "$cmd" &>/dev/null || missing+=("$cmd")
     done
 
-    # yq 是可选的，但强烈推荐
-    if ! command -v yq &>/dev/null; then
-        log_warn "yq 未安装，将使用内置简单 YAML 解析器"
-    fi
-
     if [[ ${#missing[@]} -gt 0 ]]; then
         log_error "缺少必需依赖: ${missing[*]}"
         exit 1
@@ -132,32 +133,30 @@ update_tool_config() {
     log_step "更新工具配置..."
 
     # 从配置文件读取路径
-    if command -v yq &>/dev/null; then
-        local model_name path_prefix report_prefix
-        model_name=$(yq '.model.name // "default"' "$CONFIG_FILE")
-        local use_model_name=$(yq '.paths.use_model_name // true' "$CONFIG_FILE")
-        local paths_results=$(yq '.paths.results // "results"' "$CONFIG_FILE")
-        local paths_reports=$(yq '.paths.reports // "reports"' "$CONFIG_FILE")
+    local model_name path_prefix report_prefix
+    model_name=$(yq '.model.name // "default"' "$CONFIG_FILE")
+    local use_model_name=$(yq '.paths.use_model_name // true' "$CONFIG_FILE")
+    local paths_results=$(yq '.paths.results // "results"' "$CONFIG_FILE")
+    local paths_reports=$(yq '.paths.reports // "reports"' "$CONFIG_FILE")
 
-        if [[ "$use_model_name" == "true" ]]; then
-            path_prefix="${paths_results}/${model_name}"
-            report_prefix="${paths_reports}/${model_name}"
-        else
-            path_prefix="${paths_results}"
-            report_prefix="${paths_reports}"
-        fi
-
-        # 更新 tool_config.yaml 中的路径
-        yq -i ".paths.model_name = \"$model_name\"" "$TOOL_CONFIG"
-        yq -i ".paths.results = \"$paths_results\"" "$TOOL_CONFIG"
-        yq -i ".paths.log_dir = \"${path_prefix}/bench_log\"" "$TOOL_CONFIG"
-        yq -i ".paths.reports_dir = \"$report_prefix\"" "$TOOL_CONFIG"
-        yq -i ".paths.nsys_output_dir = \"${path_prefix}/nsys-raw\"" "$TOOL_CONFIG"
-        yq -i ".paths.gems_config_dir = \"${path_prefix}/gems-config\"" "$TOOL_CONFIG"
-        yq -i ".paths.gems_config_shape_dir = \"${path_prefix}/gems-config-shape\"" "$TOOL_CONFIG"
-
-        log_info "工具配置已更新 (模型: ${model_name})"
+    if [[ "$use_model_name" == "true" ]]; then
+        path_prefix="${paths_results}/${model_name}"
+        report_prefix="${paths_reports}/${model_name}"
+    else
+        path_prefix="${paths_results}"
+        report_prefix="${paths_reports}"
     fi
+
+    # 更新 tool_config.yaml 中的路径
+    yq -i ".paths.model_name = \"$model_name\"" "$TOOL_CONFIG"
+    yq -i ".paths.results = \"$paths_results\"" "$TOOL_CONFIG"
+    yq -i ".paths.log_dir = \"${path_prefix}/bench_log\"" "$TOOL_CONFIG"
+    yq -i ".paths.reports_dir = \"$report_prefix\"" "$TOOL_CONFIG"
+    yq -i ".paths.nsys_output_dir = \"${path_prefix}/nsys-raw\"" "$TOOL_CONFIG"
+    yq -i ".paths.gems_config_dir = \"${path_prefix}/gems-config\"" "$TOOL_CONFIG"
+    yq -i ".paths.gems_config_shape_dir = \"${path_prefix}/gems-config-shape\"" "$TOOL_CONFIG"
+
+    log_info "工具配置已更新 (模型: ${model_name})"
 }
 
 # 获取配置值
@@ -165,7 +164,7 @@ get_config_value() {
     local key="$1"
     local default="${2:-}"
 
-    if command -v yq &>/dev/null && [[ -f "$TOOL_CONFIG" ]]; then
+    if [[ -f "$TOOL_CONFIG" ]]; then
         local value=$(yq ".$key // \"$default\"" "$TOOL_CONFIG")
         echo "$value"
     else

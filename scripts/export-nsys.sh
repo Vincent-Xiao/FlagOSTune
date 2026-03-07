@@ -53,7 +53,7 @@ done
 
 # 获取目录
 if [[ -z "$NSYS_DIR" ]]; then
-    if [[ -f "$TOOL_CONFIG" ]] && command -v yq &>/dev/null; then
+    if [[ -f "$TOOL_CONFIG" ]]; then
         NSYS_DIR=$(yq '.paths.nsys_output_dir' "$TOOL_CONFIG")
     fi
     [[ -z "$NSYS_DIR" || "$NSYS_DIR" == "null" ]] && NSYS_DIR="results/nsys-raw"

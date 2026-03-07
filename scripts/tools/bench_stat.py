@@ -14,11 +14,7 @@ import subprocess
 import sys
 from datetime import date
 
-try:
-    import yaml
-    HAS_YAML = True
-except ImportError:
-    HAS_YAML = False
+import yaml
 
 
 def get_project_root() -> Path:
@@ -40,79 +36,8 @@ def load_tool_config() -> dict:
     if not tool_config.exists():
         return {}
 
-    if HAS_YAML:
-        with open(tool_config) as f:
-            return yaml.safe_load(f) or {}
-    else:
-        return parse_simple_yaml(tool_config)
-
-
-def parse_simple_yaml(filepath: Path) -> dict:
-    """Simple YAML parser for basic structures"""
-    result = {}
-    current_section = None
-    current_subsection = None
-
-    with open(filepath) as f:
-        for line in f:
-            line = line.rstrip()
-
-            if not line or line.startswith('#'):
-                continue
-
-            indent = len(line) - len(line.lstrip())
-            line = line.strip()
-
-            if indent == 0 and ':' in line:
-                key = line.rstrip(':')
-                result[key] = {}
-                current_section = key
-                current_subsection = None
-            elif indent == 2 and ':' in line and current_section:
-                key = line.rstrip(':')
-                if isinstance(result[current_section], dict):
-                    result[current_section][key] = {}
-                    current_subsection = key
-            elif indent >= 4 and ':' in line and current_section:
-                key, _, value = line.partition(':')
-                key = key.strip()
-                value = value.strip()
-
-                parsed_value = parse_yaml_value(value)
-
-                if current_subsection and isinstance(result[current_section].get(current_subsection), dict):
-                    result[current_section][current_subsection][key] = parsed_value
-                elif isinstance(result[current_section], dict):
-                    result[current_section][key] = parsed_value
-
-    return result
-
-
-def parse_yaml_value(value: str):
-    """Parse YAML value"""
-    if not value:
-        return None
-
-    if (value.startswith('"') and value.endswith('"')) or \
-       (value.startswith("'") and value.endswith("'")):
-        return value[1:-1]
-
-    if value.lower() == 'true':
-        return True
-    if value.lower() == 'false':
-        return False
-
-    if value.lower() in ('null', '~', ''):
-        return None
-
-    try:
-        if '.' in value:
-            return float(value)
-        return int(value)
-    except ValueError:
-        pass
-
-    return value
+    with open(tool_config) as f:
+        return yaml.safe_load(f) or {}
 
 
 def find_bench_subdirs(root: Path, bench_dir: Path):

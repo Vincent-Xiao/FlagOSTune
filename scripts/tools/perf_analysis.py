@@ -22,12 +22,7 @@ from typing import Dict, List, Set, Optional, Any
 
 from openpyxl import Workbook
 
-# 尝试导入 yaml
-try:
-    import yaml
-    HAS_YAML = True
-except ImportError:
-    HAS_YAML = False
+import yaml
 
 
 def get_project_root() -> Path:
@@ -42,10 +37,8 @@ def load_tool_config() -> Optional[Dict[str, Any]]:
     if not config_path.exists():
         return None
 
-    if HAS_YAML:
-        with open(config_path, encoding="utf-8") as f:
-            return yaml.safe_load(f)
-    return None
+    with open(config_path, encoding="utf-8") as f:
+        return yaml.safe_load(f)
 
 
 def get_default_paths() -> tuple[Path, Path]:

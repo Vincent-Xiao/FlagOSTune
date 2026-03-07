@@ -12,11 +12,7 @@ import argparse
 from pathlib import Path
 import re
 
-try:
-    import yaml
-    HAS_YAML = True
-except ImportError:
-    HAS_YAML = False
+import yaml
 
 
 def get_project_root() -> Path:
@@ -38,11 +34,8 @@ def load_tool_config() -> dict:
     if not tool_config.exists():
         return {}
 
-    if HAS_YAML:
-        with open(tool_config) as f:
-            return yaml.safe_load(f) or {}
-    else:
-        return {}
+    with open(tool_config) as f:
+        return yaml.safe_load(f) or {}
 
 
 def normalize_text(text: str) -> str:
