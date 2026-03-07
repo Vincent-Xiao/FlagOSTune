@@ -3,11 +3,11 @@
 
 输入:
 - --nsys_path: 包含 report-cuda.sqlite 和 report-gems-all.sqlite 的目录
-- 未指定时兼容旧路径: nsys-cuda/report-cuda.sqlite + nsys-gems/report-gems-all.sqlite
+- 未指定时从 tool_config.yaml 读取: results/{model_name}/nsys-raw
 
 输出:
 - --output_path: 报告输出目录
-- 未指定时兼容旧路径: reports/ 与 processing/
+- 未指定时从 tool_config.yaml 读取: reports/{model_name}/
 """
 
 from __future__ import annotations
@@ -18,9 +18,56 @@ import re
 import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Set
+from typing import Dict, List, Set, Optional, Any
 
 from openpyxl import Workbook
+
+# 尝试导入 yaml
+try:
+    import yaml
+    HAS_YAML = True
+except ImportError:
+    HAS_YAML = False
+
+
+def get_project_root() -> Path:
+    """获取项目根目录"""
+    return Path(__file__).resolve().parent.parent.parent  # scripts/tools/ -> scripts/ -> project_root
+
+
+def load_tool_config() -> Optional[Dict[str, Any]]:
+    """从 tool_config.yaml 加载配置"""
+    config_path = get_project_root() / "scripts" / "tools" / "tool_config.yaml"
+
+    if not config_path.exists():
+        return None
+
+    if HAS_YAML:
+        with open(config_path, encoding="utf-8") as f:
+            return yaml.safe_load(f)
+    return None
+
+
+def get_default_paths() -> tuple[Path, Path]:
+    """获取默认的 nsys 和输出路径 (从 tool_config.yaml 或使用默认值)"""
+    root = get_project_root()
+    config = load_tool_config()
+
+    if config:
+        paths = config.get("paths", {})
+        model_name = paths.get("model_name", "default")
+        results_dir = paths.get("results", "results")
+        reports_dir = paths.get("reports_dir", f"reports/{model_name}")
+
+        # 构建完整路径
+        nsys_path = root / results_dir / model_name / "nsys-raw"
+        output_path = root / reports_dir
+    else:
+        # 使用默认路径
+        nsys_path = root / "results" / "default" / "nsys-raw"
+        output_path = root / "reports" / "default"
+
+    return nsys_path, output_path
 
 
 def resolve_path(root: Path, path_value: str) -> Path:
@@ -544,30 +591,31 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    root = Path(__file__).resolve().parent.parent.parent  # scripts/tools/ -> scripts/ -> project_root
+    root = get_project_root()
+
+    # 获取默认路径
+    default_nsys_path, default_output_path = get_default_paths()
 
     # 确定 nsys 目录
     if args.nsys_path:
         nsys_dir = resolve_path(root, args.nsys_path)
-        cuda_db = first_existing_file(nsys_dir, ["report-cuda.sqlite", "report_cuda.sqlite"])
-        gems_db = first_existing_file(nsys_dir, ["report-gems-all.sqlite", "report_gems_all.sqlite"])
     else:
-        cuda_db = first_existing_file(root / "nsys-cuda", ["report-cuda.sqlite", "report_cuda.sqlite"])
-        gems_db = first_existing_file(root / "nsys-gems", ["report-gems-all.sqlite", "report_gems_all.sqlite"])
+        nsys_dir = default_nsys_path
+
+    cuda_db = first_existing_file(nsys_dir, ["report-cuda.sqlite", "report_cuda.sqlite"])
+    gems_db = first_existing_file(nsys_dir, ["report-gems-all.sqlite", "report_gems_all.sqlite"])
 
     # 确定输出目录
     if args.output_path:
         output_dir = resolve_path(root, args.output_path)
-        output_dir.mkdir(parents=True, exist_ok=True)
-        out_md = output_dir / "perf_analysis.md"
-        out_xlsx = output_dir / "perf_analysis.xlsx"
-        out_shape_md = output_dir / "shape_analysis.md"
-        out_shape_xlsx = output_dir / "shape_analysis.xlsx"
     else:
-        out_md = root / "reports" / "perf_analysis.md"
-        out_xlsx = root / "reports" / "perf_analysis.xlsx"
-        out_shape_md = root / "processing" / "shape_analysis.md"
-        out_shape_xlsx = root / "reports" / "shape_analysis.xlsx"
+        output_dir = default_output_path
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    out_md = output_dir / "perf_analysis.md"
+    out_xlsx = output_dir / "perf_analysis.xlsx"
+    out_shape_md = output_dir / "shape_analysis.md"
+    out_shape_xlsx = output_dir / "shape_analysis.xlsx"
 
     if not cuda_db.exists() or not gems_db.exists():
         raise SystemExit(f"缺少sqlite文件: {cuda_db} 或 {gems_db}")
