@@ -351,6 +351,11 @@ generate_serve_command() {
     cmd+=" --port ${PORT}"
     cmd+=" --served-model-name ${MODEL_NAME}"
 
+    # NSYS 性能分析模式：添加 profiler 配置
+    if [[ "$NSYS_PROFILE" == "true" ]]; then
+        cmd+=" --profiler-config.profiler cuda"
+    fi
+
     # 从配置读取服务参数
     local gpu_mem_util trust_remote reasoning_parser load_format
     gpu_mem_util=$(yq '.serve.gpu_memory_utilization' "$CONFIG_FILE")
@@ -593,6 +598,38 @@ wait_tmux_command_done() {
     done
 }
 
+# 生成 NSYS 包装的服务器命令
+generate_nsys_serve_command() {
+    local serve_cmd="$1"
+    local env_vars="$2"
+
+    # 获取 nsys 输出路径
+    local nsys_output_dir
+    nsys_output_dir=$(yq '.paths.nsys_output_dir' "$TOOL_CONFIG")
+    mkdir -p "${PROJECT_ROOT}/${nsys_output_dir}"
+
+    local gems_suffix=""
+    [[ "$MODE" == "gems" ]] && gems_suffix="_${GEMS_MODE}"
+    local nsys_output="${PROJECT_ROOT}/${nsys_output_dir}/report_${MODE}${gems_suffix}"
+
+    # 构建 nsys profile 命令
+    local nsys_cmd="nsys profile"
+    nsys_cmd+=" --trace=cuda,nvtx,osrt"
+    nsys_cmd+=" --trace-fork-before-exec=true"
+    nsys_cmd+=" --cuda-graph-trace=node"
+    nsys_cmd+=" --capture-range=cudaProfilerApi"
+    nsys_cmd+=" --capture-range-end=repeat"
+    nsys_cmd+=" -o \"${nsys_output}\""
+    nsys_cmd+=" --force-overwrite=true"
+
+    # 组合环境变量和命令
+    if [[ -n "$env_vars" ]]; then
+        echo "TRITON_PRINT_AUTOTUNING=1 $env_vars $nsys_cmd $serve_cmd"
+    else
+        echo "TRITON_PRINT_AUTOTUNING=1 $nsys_cmd $serve_cmd"
+    fi
+}
+
 # 单次运行
 run_single() {
     log_step "========== 运行: MODE=$MODE, DEVICE=$DEVICE, GEMS_MODE=$GEMS_MODE =========="
@@ -600,10 +637,10 @@ run_single() {
     # 1. 更新配置
     update_tool_config
 
-    # 检查是否启用 profiling 模式
-    if [[ "$NSYS_PROFILE" == "true" || "$TORCH_PROFILE" == "true" ]]; then
-        # Profiling 模式: 在 tmux 中运行 vllm bench throughput
-        log_info "Profiling 模式: 使用 vllm bench throughput (内置服务器)"
+    # 检查是否启用 Torch profiling 模式 (保留旧模式)
+    if [[ "$TORCH_PROFILE" == "true" ]]; then
+        # Torch Profiling 模式: 在 tmux 中运行 vllm bench throughput
+        log_info "Torch Profiling 模式: 使用 vllm bench throughput (内置服务器)"
 
         # 应用补丁 (gems 模式需要)
         apply_vllm_patch
@@ -646,7 +683,7 @@ run_single() {
 
         log_info "复用模式: 跳过服务器停止"
     else
-        # 正常模式: 启动服务器 -> 运行测试 -> 停止服务器
+        # 正常模式 (或 NSYS profiling 模式): 启动服务器 -> 运行测试 -> 停止服务器
 
         # 2. 应用补丁
         apply_vllm_patch
@@ -655,8 +692,6 @@ run_single() {
         local serve_cmd env_vars
         serve_cmd=$(generate_serve_command)
         env_vars=$(generate_env_vars)
-
-        log_info "Serve 命令: TRITON_PRINT_AUTOTUNING=1 $env_vars $serve_cmd"
 
         # 4. 在 tmux 中启动服务器
         ensure_tmux_session
@@ -671,8 +706,23 @@ run_single() {
         server_log_file=$(generate_server_log_file)
         log_info "服务端日志: $server_log_file"
 
-        local full_cmd="${env_activate}cd $PROJECT_ROOT && TRITON_PRINT_AUTOTUNING=1 $env_vars $serve_cmd 2>&1 | tee \"$server_log_file\""
-        send_to_tmux "$full_cmd"
+        # 判断是否为 NSYS profiling 模式
+        if [[ "$NSYS_PROFILE" == "true" ]]; then
+            log_info "NSYS Profiling 模式: 使用 nsys profile 包装 vllm serve"
+
+            # 生成 nsys 包装的服务器命令
+            local nsys_serve_cmd
+            nsys_serve_cmd=$(generate_nsys_serve_command "$serve_cmd" "$env_vars")
+            log_info "NSYS Serve 命令: $nsys_serve_cmd"
+
+            local full_cmd="${env_activate}cd $PROJECT_ROOT && $nsys_serve_cmd 2>&1 | tee \"$server_log_file\""
+            send_to_tmux "$full_cmd"
+        else
+            log_info "Serve 命令: TRITON_PRINT_AUTOTUNING=1 $env_vars $serve_cmd"
+
+            local full_cmd="${env_activate}cd $PROJECT_ROOT && TRITON_PRINT_AUTOTUNING=1 $env_vars $serve_cmd 2>&1 | tee \"$server_log_file\""
+            send_to_tmux "$full_cmd"
+        fi
 
         # 5. 等待服务器就绪
         wait_server_ready

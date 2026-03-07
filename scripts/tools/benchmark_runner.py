@@ -146,7 +146,7 @@ def get_scenarios(config: dict) -> list:
     return scenarios
 
 
-def build_benchmark_command(scenario: dict, config: dict) -> list:
+def build_benchmark_command(scenario: dict, config: dict, is_last_run: bool = False) -> list:
     """构建基准测试命令"""
     current_run = config.get('current_run', {})
     nsys_profile = current_run.get('nsys_profile', False)
@@ -163,8 +163,8 @@ def build_benchmark_command(scenario: dict, config: dict) -> list:
     output_len = scenario.get('output_len', 1024)
     concurrency = scenario.get('concurrency', 100)
 
-    if nsys_profile or torch_profile:
-        # 使用 throughput 模式
+    if torch_profile:
+        # Torch profiling 使用 throughput 模式
         cmd = [
             'vllm', 'bench', 'throughput',
             '--tensor-parallel-size', str(tensor_parallel_size),
@@ -177,7 +177,7 @@ def build_benchmark_command(scenario: dict, config: dict) -> list:
             '--num-prompts', str(concurrency),
         ]
     else:
-        # 使用 serve 模式
+        # 普通模式使用 serve 模式
         cmd = [
             'vllm', 'bench', 'serve',
             '--host', host,
@@ -194,6 +194,8 @@ def build_benchmark_command(scenario: dict, config: dict) -> list:
             '--num-prompts', str(concurrency),
             '--max-concurrency', str(concurrency),
         ]
+        if is_last_run:
+            cmd.append('--profile')
 
     return cmd
 
@@ -210,12 +212,15 @@ def run_benchmark(scenario: dict, run_id: int, config: dict):
     torch_profile = current_run.get('torch_profile', False)
     num_runs = config.get('benchmark', {}).get('num_runs', 4)
 
+    # 判断是否为最后一轮
+    is_last_run = (run_id == num_runs)
+
     # 获取日志目录
     log_dir = Path(config.get('paths', {}).get('log_dir', 'results/bench-logs'))
     log_dir.mkdir(parents=True, exist_ok=True)
     log_file = log_dir / f"{name}_run{run_id}.log"
 
-    cmd = build_benchmark_command(scenario, config)
+    cmd = build_benchmark_command(scenario, config, is_last_run)
 
     timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     print(f"\n[{timestamp}] Starting scenario: {name} (Run {run_id})")
@@ -223,63 +228,44 @@ def run_benchmark(scenario: dict, run_id: int, config: dict):
     print(f"    Logging to: {log_file}")
     print(f"    Command: {' '.join(cmd)}\n")
 
-    # Torch profiler 支持
+    # Torch profiler 支持 (仅用于 torch_profile 模式)
     prof = None
-    profiler_warmup = num_runs - 1
 
-    if HAS_TORCH and run_id == profiler_warmup + 1:
-        if nsys_profile:
-            print("Start nsys profiling...")
-            torch.cuda.profiler.start()
-        elif torch_profile:
-            torch_report_dir = Path(config.get('paths', {}).get('torch_output_dir', 'results/torch-raw'))
-            torch_report_dir.mkdir(parents=True, exist_ok=True)
+    if HAS_TORCH and torch_profile and is_last_run:
+        torch_report_dir = Path(config.get('paths', {}).get('torch_output_dir', 'results/torch-raw'))
+        torch_report_dir.mkdir(parents=True, exist_ok=True)
 
-            mode = current_run.get('mode', 'cuda')
-            gems_mode = current_run.get('gems', {}).get('mode', '')
-            gems_suffix = f"-{gems_mode}" if mode == 'gems' else ""
-            torch_report = torch_report_dir / f"report-{mode}{gems_suffix}.json"
+        mode = current_run.get('mode', 'cuda')
+        gems_mode = current_run.get('gems', {}).get('mode', '')
+        gems_suffix = f"-{gems_mode}" if mode == 'gems' else ""
+        torch_report = torch_report_dir / f"report-{mode}{gems_suffix}.json"
 
-            prof = torch.profiler.profile(
-                activities=[torch.profiler.ProfilerActivity.CPU, torch.profiler.ProfilerActivity.CUDA],
-                record_shapes=True,
-                profile_memory=False,
-                with_stack=True,
-                with_flops=True
-            )
-            print(f"Start torch profiling (Output: {torch_report})...")
+        prof = torch.profiler.profile(
+            activities=[torch.profiler.ProfilerActivity.CPU, torch.profiler.ProfilerActivity.CUDA],
+            record_shapes=True,
+            profile_memory=False,
+            with_stack=True,
+            with_flops=True
+        )
+        print(f"Start torch profiling (Output: {torch_report})...")
 
     # 执行命令
-    ctx = contextlib.nullcontext()
-    if HAS_TORCH and nsys_profile and run_id == profiler_warmup + 1:
-        ctx = torch.autograd.profiler.emit_nvtx(record_shapes=True)
-        torch.cuda.nvtx.range_push(f"Model_Chat_Step_{run_id}")
-
-    try:
-        with ctx:
-            if HAS_TORCH and torch_profile and run_id == profiler_warmup + 1 and prof:
-                with prof:
-                    with open(log_file, 'w') as f:
-                        result = subprocess.run(cmd, stdout=f, stderr=subprocess.STDOUT, text=True)
-            else:
-                with open(log_file, 'w') as f:
-                    result = subprocess.run(cmd, stdout=f, stderr=subprocess.STDOUT, text=True)
-    finally:
-        if HAS_TORCH and (nsys_profile or torch_profile) and run_id == profiler_warmup + 1:
-            torch.cuda.nvtx.range_pop()
+    if HAS_TORCH and torch_profile and is_last_run and prof:
+        with prof:
+            with open(log_file, 'w') as f:
+                result = subprocess.run(cmd, stdout=f, stderr=subprocess.STDOUT, text=True)
+    else:
+        with open(log_file, 'w') as f:
+            result = subprocess.run(cmd, stdout=f, stderr=subprocess.STDOUT, text=True)
 
     # 停止 profiler
-    if HAS_TORCH and run_id == profiler_warmup + 1:
-        if nsys_profile:
-            torch.cuda.profiler.stop()
-            print("Stop nsys profiling...")
-        elif torch_profile and prof:
-            mode = current_run.get('mode', 'cuda')
-            gems_mode = current_run.get('gems', {}).get('mode', '')
-            gems_suffix = f"-{gems_mode}" if mode == 'gems' else ""
-            torch_report = Path(config.get('paths', {}).get('torch_output_dir', 'results/torch-raw')) / f"report-{mode}{gems_suffix}.json"
-            prof.export_chrome_trace(str(torch_report))
-            print(f"Stop torch profiling, trace exported to: {torch_report}")
+    if HAS_TORCH and torch_profile and is_last_run and prof:
+        mode = current_run.get('mode', 'cuda')
+        gems_mode = current_run.get('gems', {}).get('mode', '')
+        gems_suffix = f"-{gems_mode}" if mode == 'gems' else ""
+        torch_report = Path(config.get('paths', {}).get('torch_output_dir', 'results/torch-raw')) / f"report-{mode}{gems_suffix}.json"
+        prof.export_chrome_trace(str(torch_report))
+        print(f"Stop torch profiling, trace exported to: {torch_report}")
 
     status = "Success" if result.returncode == 0 else "Failed"
     timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
