@@ -162,6 +162,32 @@ def infer_aten_op(kernel_name: str) -> str:
         return "vllm::fused_recurrent_gated_delta_rule_fwd"
     if lower == "fused_gdn_gating_kernel":
         return "vllm::fused_gdn_gating"
+    if lower == "finalizemoeroutingkernel":
+        return "vllm::topk_gating"
+    if lower == "doactivationkernel":
+        return "aten::silu"
+    if lower == "scale_1x128_kernel":
+        return "aten::mul"
+    if lower == "transpose_fp32":
+        return "aten::transpose"
+    if lower == "eye_kernel":
+        return "aten::eye"
+    if lower == "delaystreamkernel":
+        return "vllm::device_kernel"
+    if lower == "marlin" or "marlin" in lower:
+        return "aten::mm"
+    if lower == "grouped_topk_fused_kernel":
+        return "aten::topk"
+    if lower == "kern_precompute_indices":
+        return "aten::topk"
+    if lower.startswith("clamp_func"):
+        return "aten::clamp"
+    if lower.startswith("uniform_kernel"):
+        return "aten::rand"
+    if lower.startswith("rem_ts_kernel"):
+        return "aten::remainder"
+    if lower.startswith("polar_kernel"):
+        return "aten::polar"
     if lower == "device_kernel":
         return "vllm::device_kernel"
     if lower == "sweep":
@@ -284,6 +310,19 @@ def infer_aten_op(kernel_name: str) -> str:
         return "aten::sub"
     if re.search(r"(^|_)div(_|$)", lower):
         return "aten::div"
+
+    if "marlin" in lower:
+        return "aten::mm"
+    if "grouped_topk" in lower or "precompute_indices" in lower:
+        return "aten::topk"
+    if "clamp_func" in lower:
+        return "aten::clamp"
+    if "uniform_kernel" in lower:
+        return "aten::rand"
+    if "rem_ts_kernel" in lower:
+        return "aten::remainder"
+    if "polar_kernel" in lower:
+        return "aten::polar"
 
     if re.search(r"\bmm\b", lower):
         return "aten::mm"

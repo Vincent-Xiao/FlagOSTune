@@ -1,9 +1,5 @@
 minicpm-vllm/
 
-# User config files (use config.yaml.<model> for different models)
-config.yaml
-config.yaml.*
-!config.yaml.template
 
 .claude/
 .cursor/
