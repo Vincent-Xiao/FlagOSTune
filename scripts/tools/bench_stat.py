@@ -157,7 +157,7 @@ def run_benchmark(script_path: Path, log_dir: str):
 def main():
     parser = argparse.ArgumentParser(description="Process benchmark statistics")
     parser.add_argument("-f", dest="filename", type=str, default="", help="Filename suffix for input directory and output report")
-    parser.add_argument("--warmup", type=int, default=1, help="Number of warmup rounds to skip (default: 1)")
+    parser.add_argument("--warmup", type=int, default=2, help="Number of warmup rounds to skip (default: 2)")
     args = parser.parse_args()
 
     repo_root = get_project_root()

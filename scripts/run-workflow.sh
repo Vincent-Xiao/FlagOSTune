@@ -21,6 +21,7 @@
 #   --batch               批量模式 (逐算子运行)
 #   --reuse               复用已有服务器，不重新启动
 #   --gems-once           GEMS_ONCE 参数 (默认 true)
+#   --pretune             输出目录追加 pretune 后缀
 #   --custom-suffix       自定义日志路径后缀
 #
 
@@ -65,6 +66,7 @@ RUN_IDLE=false
 BATCH_MODE=false
 REUSE_SERVER=false  # 复用已有服务器
 GEMS_ONCE=true  # GEMS_ONCE 参数
+PRETUNE=false  # 输出目录是否追加 pretune 后缀
 MODEL_CONFIG=""  # 模型配置后缀，如 "deepseek-3.2"
 CUSTOM_SUFFIX=""  # 自定义日志路径后缀
 
@@ -115,6 +117,10 @@ parse_args() {
             --gems-once)
                 GEMS_ONCE="$2"
                 shift 2
+                ;;
+            --pretune)
+                PRETUNE=true
+                shift
                 ;;
             --model)
                 MODEL_CONFIG="$2"
@@ -264,10 +270,11 @@ update_tool_config() {
         shape_suffix="-shape"
     fi
 
-    # 构建自定义后缀
+    # 构建输出后缀
     local custom_suffix=""
+    [[ "$PRETUNE" == "true" ]] && custom_suffix+="_pretune"
     if [[ -n "$CUSTOM_SUFFIX" ]]; then
-        custom_suffix="_${CUSTOM_SUFFIX}"
+        custom_suffix+="_${CUSTOM_SUFFIX}"
     fi
 
     # 更新日志路径 (包含模型名和 shape 后缀)
@@ -327,10 +334,11 @@ generate_server_log_file() {
         shape_suffix="-shape"
     fi
 
-    # 构建自定义后缀
+    # 构建输出后缀
     local custom_suffix=""
+    [[ "$PRETUNE" == "true" ]] && custom_suffix+="_pretune"
     if [[ -n "$CUSTOM_SUFFIX" ]]; then
-        custom_suffix="_${CUSTOM_SUFFIX}"
+        custom_suffix+="_${CUSTOM_SUFFIX}"
     fi
 
     # 创建目录

@@ -252,7 +252,7 @@ if os.getenv("USE_FLAGOS") == "1":
                   "vdot", "vector_norm", "vstack", "weight_norm_interface",
                   "weight_norm_interface_backward", "where_scalar_other", "where_scalar_self",
                   "where_self", "where_self_out", "zeros", "zeros_like"]
-
+    FlagGemsMMList=["mm","mm_out"]
     # 构建保存路径: GEMS_SAVE_PATH/xxx.txt
     def _get_gems_path(filename):
         if GEMS_SAVE_PATH:
@@ -269,6 +269,13 @@ if os.getenv("USE_FLAGOS") == "1":
         if gems_unuse_list:
             kwargs["unused"] = gems_unuse_list
         flag_gems.enable(**kwargs)
+    elif USE_GEMS_MODE == "mm":
+        gems_path = _get_gems_path(f"gems-{USE_GEMS_MODE}.txt")
+        kwargs = {"record": True, "once": GEMS_ONCE}
+        if gems_path:
+            kwargs["path"] = gems_path
+        kwargs["include"] = FlagGemsMMList
+        flag_gems.only_enable(**kwargs)
     elif USE_GEMS_MODE == "NULL":
         gems_path = _get_gems_path(f"gems-{USE_GEMS_MODE}.txt")
         kwargs = {"record": True, "once": GEMS_ONCE, "unused": FlagGemsList}

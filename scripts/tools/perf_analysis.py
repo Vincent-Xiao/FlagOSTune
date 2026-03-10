@@ -146,6 +146,18 @@ def infer_aten_op(kernel_name: str) -> str:
         return "vllm::reshape_and_cache"
     if lower == "prepare_varlen_num_blocks_kernel":
         return "vllm::prepare_varlen_num_blocks"
+    if lower == "concat_and_cache_mla_kernel":
+        return "vllm::reshape_and_cache"
+    if lower == "indexer_k_quant_and_cache_kernel":
+        return "vllm::reshape_and_cache"
+    if lower == "per_token_group_quant_8bit_kernel":
+        return "vllm::per_token_group_quant"
+    if lower in ("topkperrowdecode", "topkperrowprefill", "topk_kernel"):
+        return "aten::topk"
+    if lower == "sparse_attn_fwd_kernel":
+        return "aten::scaled_dot_product_attention"
+    if "mqa_logits" in lower or lower == "smxx_paged_mqa_logits_metadata":
+        return "aten::scaled_dot_product_attention"
     if lower == "fused_recurrent_gated_delta_rule_fwd_kernel":
         return "vllm::fused_recurrent_gated_delta_rule_fwd"
     if lower == "fused_gdn_gating_kernel":
@@ -154,6 +166,16 @@ def infer_aten_op(kernel_name: str) -> str:
         return "vllm::device_kernel"
     if lower == "sweep":
         return "vllm::sweep"
+    if lower.startswith("deviceradixsort"):
+        return "aten::sort"
+    if lower.startswith("devicescan"):
+        return "aten::sort"
+    if lower == "_topk_topp_kernel":
+        return "aten::topk"
+    if lower == "fill_index_and_segment_kernel":
+        return "aten::topk"
+    if lower == "sort_postprocess_kernel":
+        return "aten::topk"
     if lower.startswith("sum_dim_kernel"):
         return "aten::sum"
     if lower.startswith("fill_scalar_func_kernel"):
