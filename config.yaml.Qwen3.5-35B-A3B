@@ -1,0 +1,129 @@
+# FlagTune Configuration
+# 用户主配置文件 - 配置模型、服务参数和基准测试场景
+
+# ===================
+# 模型配置
+# ===================
+model:
+  # 模型路径
+  path: /models/Qwen3.5-35B-A3B
+  # 服务名称 (用于 vllm serve --served-model-name)
+  name: Qwen3.5-35B-A3B
+  # 张量并行大小
+  tensor_parallel_size: 1
+  # Tokenizer 路径 (默认与 model.path 相同)
+  tokenizer_path: null  # null 表示使用 model.path
+
+# ===================
+# 服务配置
+# ===================
+serve:
+  # GPU 显存利用率
+  gpu_memory_utilization: 0.85
+  # 最大批处理 token 数
+  max_num_batched_tokens: 16384
+  # 最大序列数
+  max_num_seqs: 2048
+  # 信任远程代码
+  trust_remote_code: true
+  reasoning_parser: qwen3
+  load_format: auto
+  # 额外参数 (将直接传递给 vllm serve)
+  extra_args: ""
+
+# ===================
+# 基准测试配置
+# ===================
+benchmark:
+  # 主机地址
+  host: 127.0.0.1
+  # 端口基数 (实际端口 = port_base + device)
+  port_base: 2345
+  # 每个场景运行次数
+  num_runs: 4
+
+  # 测试场景列表
+  # name: 场景名称
+  # input_len: 输入长度
+  # output_len: 输出长度
+  # concurrency: 并发数
+  scenarios:
+    # Optimized 场景
+    optimized:
+      - name: p4096d1024
+        input_len: 4096
+        output_len: 1024
+        concurrency: 100
+
+    # 完整场景 (用于 Benchmark 工作流)
+    full:
+      - name: p128d128
+        input_len: 128
+        output_len: 128
+        concurrency: 100
+      - name: p6144d128
+        input_len: 6144
+        output_len: 128
+        concurrency: 100
+      - name: p30720d128
+        input_len: 30720
+        output_len: 128
+        concurrency: 100
+      - name: p128d6144
+        input_len: 128
+        output_len: 6144
+        concurrency: 100
+      - name: p6144d6144
+        input_len: 6144
+        output_len: 6144
+        concurrency: 100
+      - name: p4096d2048
+        input_len: 4096
+        output_len: 2048
+        concurrency: 64
+      - name: p6144d1024
+        input_len: 6144
+        output_len: 1024
+        concurrency: 100
+      - name: p4096d1024
+        input_len: 4096
+        output_len: 1024
+        concurrency: 100
+      - name: p2048d1024
+        input_len: 2048
+        output_len: 1024
+        concurrency: 100
+      - name: p1024d1024
+        input_len: 1024
+        output_len: 1024
+        concurrency: 100
+
+# ===================
+# 目标算子列表
+# ===================
+# 用于逐算子测试时指定要测试的算子
+target_ops:
+  - reciprocal
+  - cat
+  - gather
+  - lt
+  - le
+  - softmax
+  - scatter
+  - cumsum_out
+  - layer_norm
+
+# ===================
+# 路径配置
+# ===================
+paths:
+  # 结果目录根路径 (实际路径: {results}/{model.name}/)
+  results: results
+  # 报告目录根路径 (实际路径: {reports}/{model.name}/)
+  reports: reports
+  # Gems 配置目录
+  gems_config: gems-config
+  # 处理脚本目录
+  processing: processing
+  # 是否在路径中包含模型名称
+  use_model_name: true
