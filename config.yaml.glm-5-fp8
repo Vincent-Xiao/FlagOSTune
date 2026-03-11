@@ -41,7 +41,7 @@ benchmark:
   # 端口基数 (实际端口 = port_base + device)
   port_base: 2345
   # 每个场景运行次数
-  num_runs: 4
+  num_runs: 5
 
   # 测试场景列表
   # name: 场景名称
