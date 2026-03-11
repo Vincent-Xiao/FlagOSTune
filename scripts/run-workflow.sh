@@ -23,6 +23,7 @@
 #   --gems-once           GEMS_ONCE 参数 (默认 true)
 #   --pretune             输出目录追加 pretune 后缀
 #   --custom-suffix       自定义日志路径后缀
+#   --runs N              覆盖 benchmark.num_runs（运行次数）
 #
 
 set -euo pipefail
@@ -69,6 +70,7 @@ GEMS_ONCE=true  # GEMS_ONCE 参数
 PRETUNE=false  # 输出目录是否追加 pretune 后缀
 MODEL_CONFIG=""  # 模型配置后缀，如 "deepseek-3.2"
 CUSTOM_SUFFIX=""  # 自定义日志路径后缀
+RUNS_OVERRIDE=""  # 覆盖 benchmark.num_runs
 
 # 解析参数
 parse_args() {
@@ -130,8 +132,16 @@ parse_args() {
                 CUSTOM_SUFFIX="$2"
                 shift 2
                 ;;
+            --runs)
+                RUNS_OVERRIDE="$2"
+                if [[ ! "$RUNS_OVERRIDE" =~ ^[1-9][0-9]*$ ]]; then
+                    log_error "--runs 必须是大于 0 的整数，当前值: $RUNS_OVERRIDE"
+                    exit 1
+                fi
+                shift 2
+                ;;
             -h|--help)
-                head -25 "$0" | tail -23
+                head -26 "$0" | tail -24
                 exit 0
                 ;;
             *)
@@ -257,6 +267,12 @@ update_tool_config() {
     local benchmark_host benchmark_num_runs
     benchmark_host=$(yq '.benchmark.host // "127.0.0.1"' "$CONFIG_FILE")
     benchmark_num_runs=$(yq '.benchmark.num_runs // 4' "$CONFIG_FILE")
+
+    # --runs 优先级高于配置文件
+    if [[ -n "$RUNS_OVERRIDE" ]]; then
+        benchmark_num_runs="$RUNS_OVERRIDE"
+        log_info "使用命令行覆盖运行次数: benchmark.num_runs=${benchmark_num_runs}"
+    fi
 
     yq -i ".benchmark.host = \"$benchmark_host\"" "$TOOL_CONFIG"
     yq -i ".benchmark.num_runs = $benchmark_num_runs" "$TOOL_CONFIG"
