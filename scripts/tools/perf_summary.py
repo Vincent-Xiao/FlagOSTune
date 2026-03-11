@@ -21,7 +21,32 @@ def parse_percent(percent_text: str) -> float:
 
 
 def split_markdown_row(line: str) -> List[str]:
-    parts = [cell.strip() for cell in line.strip().strip("|").split("|")]
+    text = line.strip()
+    if text.startswith("|"):
+        text = text[1:]
+    if text.endswith("|"):
+        text = text[:-1]
+
+    parts: List[str] = []
+    cell_chars: List[str] = []
+    escaped = False
+    for ch in text:
+        if escaped:
+            cell_chars.append(ch)
+            escaped = False
+            continue
+        if ch == "\\":
+            escaped = True
+            continue
+        if ch == "|":
+            parts.append("".join(cell_chars).strip())
+            cell_chars = []
+            continue
+        cell_chars.append(ch)
+
+    if escaped:
+        cell_chars.append("\\")
+    parts.append("".join(cell_chars).strip())
     return parts
 
 
@@ -77,7 +102,7 @@ def parse_model_section_pct(report_path: Path, section_title: str, threshold: fl
             pct = parse_percent(pct_text)
         except ValueError:
             continue
-        if pct > threshold:
+        if pct >= threshold:
             op_to_pct[framework_op] = max(op_to_pct.get(framework_op, 0.0), pct)
 
     return op_to_pct
@@ -220,8 +245,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--threshold",
         type=float,
-        default=0.01,
-        help="占比阈值，默认 0.01（即 1%%）",
+        default=0.0,
+        help="占比阈值，默认 0.0（不过滤；0.01 表示 1%%）",
     )
     return parser.parse_args()
 

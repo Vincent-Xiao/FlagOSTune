@@ -107,6 +107,14 @@ class MmKernelShapeStat:
     total_ns: int
 
 
+@dataclass(frozen=True)
+class MappingValidationSummary:
+    db_label: str
+    db_path: str
+    total_distinct_kernels: int
+    unknown_kernels: List[str]
+
+
 def normalize_kernel_name(kernel_name: str) -> str:
     name = kernel_name
 
@@ -127,9 +135,21 @@ def normalize_kernel_name(kernel_name: str) -> str:
 def infer_aten_op(kernel_name: str) -> str:
     lower = kernel_name.lower()
 
+    def has_token(token: str) -> bool:
+        # 仅在 token 是独立语义单元时匹配，避免 expert -> exp 这类误命中
+        return re.search(rf"(^|[^a-z0-9]){re.escape(token)}([^a-z0-9]|$)", lower) is not None
+
     # 高优先级精确规则（先匹配）
     if lower.startswith("nvjet_tst_"):
         return "aten::mm"
+    if "nccldevkernel_allreduce" in lower or has_token("allreduce"):
+        return "aten::all_reduce"
+    if "nccldevkernel_allgather" in lower or has_token("allgather"):
+        return "aten::all_gather"
+    if "nccldevkernel_reducescatter" in lower or has_token("reducescatter"):
+        return "aten::reduce_scatter"
+    if "nccldevkernel_alltoall" in lower or has_token("alltoall"):
+        return "aten::all_to_all"
     if lower.startswith("triton_poi_fused_"):
         return "triton::fused_pointwise"
     if lower.startswith("triton_per_fused_"):
@@ -150,8 +170,22 @@ def infer_aten_op(kernel_name: str) -> str:
         return "vllm::reshape_and_cache"
     if lower == "indexer_k_quant_and_cache_kernel":
         return "vllm::reshape_and_cache"
+    if lower == "_convert_req_index_to_global_index_kernel":
+        return "vllm::convert_req_index_to_global_index"
     if lower == "per_token_group_quant_8bit_kernel":
         return "vllm::per_token_group_quant"
+    if lower == "count_and_sort_expert_tokens_kernel":
+        return "vllm::count_and_sort_expert_tokens"
+    if lower in (
+        "blockexpertprefixsumkernel",
+        "globalexpertprefixsumkernel",
+        "globalexpertprefixsumlargekernel",
+        "mergeexpertprefixsumkernel",
+        "fusedbuildexpertmapssortfirsttokenkernel",
+    ):
+        return "vllm::count_and_sort_expert_tokens"
+    if lower == "expandinputrowskernel":
+        return "vllm::expand_input_rows"
     if lower in ("topkperrowdecode", "topkperrowprefill", "topk_kernel"):
         return "aten::topk"
     if lower == "sparse_attn_fwd_kernel":
@@ -258,10 +292,22 @@ def infer_aten_op(kernel_name: str) -> str:
         return "aten::sum"
     if lower.startswith("reciprocal_func"):
         return "aten::reciprocal"
+    if lower.startswith("cross_device_reduce"):
+        return "aten::reduce"
+    if lower.startswith("reduce_then_scan"):
+        return "aten::reduce"
+    if lower.startswith("reduce_kernel"):
+        return "aten::reduce"
+    if lower.startswith("reduce_1block_kernel"):
+        return "aten::reduce"
+    if "splitkreduce" in lower:
+        return "aten::reduce"
+    if "causal_conv1d" in lower:
+        return "aten::conv1d"
 
     rules = [
         ("all_reduce", "aten::all_reduce"),
-        ("allgather", "aten::all_gather"),
+        ("all_gather", "aten::all_gather"),
         ("broadcast", "aten::broadcast"),
         ("flash_fwd", "aten::scaled_dot_product_attention"),
         ("fmha", "aten::scaled_dot_product_attention"),
@@ -277,7 +323,8 @@ def infer_aten_op(kernel_name: str) -> str:
         ("gelu", "aten::gelu"),
         ("relu", "aten::relu"),
         ("tanh", "aten::tanh"),
-        ("exp", "aten::exp"),
+        ("exp_kernel", "aten::exp"),
+        ("exponential_kernel", "aten::exp"),
         ("sin", "aten::sin"),
         ("cos", "aten::cos"),
         ("pow", "aten::pow"),
@@ -287,16 +334,32 @@ def infer_aten_op(kernel_name: str) -> str:
         ("embedding", "aten::embedding"),
         ("where", "aten::where"),
         ("masked_fill", "aten::masked_fill"),
-        ("reduce", "aten::reduce"),
         ("max_kernel", "aten::max"),
         ("min_kernel", "aten::min"),
-        ("conv", "aten::conv2d"),
+        ("conv2d", "aten::conv2d"),
         ("pad", "aten::pad"),
         ("elementwise", "aten::elementwise"),
     ]
 
     for pattern, aten in rules:
         if pattern in lower:
+            return aten
+
+    # 边界匹配：只在 token 独立时归类，避免误把 expert、category 等映射到 exp/cat
+    boundary_rules = [
+        ("exp", "aten::exp"),
+        ("sin", "aten::sin"),
+        ("cos", "aten::cos"),
+        ("pow", "aten::pow"),
+        ("softmax", "aten::softmax"),
+        ("scatter", "aten::scatter"),
+        ("gather", "aten::gather"),
+        ("embedding", "aten::embedding"),
+        ("where", "aten::where"),
+        ("copy", "aten::copy_"),
+    ]
+    for token, aten in boundary_rules:
+        if has_token(token):
             return aten
 
     # 避免子串误匹配（例如 multimem -> mul, scatter -> cat）
@@ -369,6 +432,62 @@ def query_kernel_stats(conn: sqlite3.Connection) -> List[KernelStat]:
 
     out.sort(key=lambda x: x.total_ns, reverse=True)
     return out
+
+
+def query_distinct_kernel_names(conn: sqlite3.Connection) -> List[str]:
+    rows = conn.execute(
+        """
+        SELECT DISTINCT COALESCE(s.value, CAST(k.shortName AS TEXT)) AS kernel_name
+        FROM CUPTI_ACTIVITY_KIND_KERNEL k
+        LEFT JOIN StringIds s ON s.id = k.shortName
+        """
+    ).fetchall()
+    return [str(row[0]) for row in rows if row and row[0] is not None]
+
+
+def validate_kernel_mapping_strict(conn: sqlite3.Connection, db_label: str, db_path: Path) -> MappingValidationSummary:
+    distinct_names = query_distinct_kernel_names(conn)
+    unknown_names: List[str] = []
+
+    for raw_name in distinct_names:
+        normalized = normalize_kernel_name(raw_name)
+        framework_op = infer_aten_op(normalized)
+        if framework_op == "unknown":
+            unknown_names.append(normalized)
+
+    unique_unknown = sorted(set(unknown_names), key=str.lower)
+    return MappingValidationSummary(
+        db_label=db_label,
+        db_path=str(db_path),
+        total_distinct_kernels=len(distinct_names),
+        unknown_kernels=unique_unknown,
+    )
+
+
+def ensure_no_unknown_mappings(summaries: List[MappingValidationSummary]) -> None:
+    problems: List[str] = []
+    for summary in summaries:
+        if summary.unknown_kernels:
+            sample = ", ".join(summary.unknown_kernels[:20])
+            if len(summary.unknown_kernels) > 20:
+                sample += ", ..."
+            problems.append(
+                f"[{summary.db_label}] unknown kernels={len(summary.unknown_kernels)} path={summary.db_path} names={sample}"
+            )
+
+    if problems:
+        raise SystemExit(
+            "检测到 unknown 算子映射，请先补充 infer_aten_op 规则后重试:\n" + "\n".join(problems)
+        )
+
+
+def print_unknown_mappings(summaries: List[MappingValidationSummary]) -> None:
+    for summary in summaries:
+        unknown_count = len(summary.unknown_kernels)
+        if unknown_count == 0:
+            continue
+        names = ", ".join(summary.unknown_kernels)
+        print(f"unknow[{summary.db_label}] count={unknown_count} names={names}")
 
 
 def extract_input_shape(kernel_name: str) -> str:
@@ -675,6 +794,12 @@ def main() -> None:
         raise SystemExit(f"缺少sqlite文件: {cuda_db} 或 {gems_db}")
 
     with sqlite3.connect(str(cuda_db)) as cuda_conn, sqlite3.connect(str(gems_db)) as gems_conn:
+        mapping_checks = [
+            validate_kernel_mapping_strict(cuda_conn, db_label="CUDA", db_path=cuda_db),
+            validate_kernel_mapping_strict(gems_conn, db_label="FlagGems", db_path=gems_db),
+        ]
+        print_unknown_mappings(mapping_checks)
+
         cuda_stats = query_kernel_stats(cuda_conn)
         gems_stats = query_kernel_stats(gems_conn)
         cuda_mm_shape_stats = query_mm_shape_stats(cuda_conn)
@@ -687,8 +812,6 @@ def main() -> None:
     gems_total_ns = sum(k.total_ns for k in gems_stats)
 
     report: List[str] = []
-    report.append("# FlagGems 和 CUDA 算子库性能对比分析")
-    report.append("")
 
     report.append("## CUDA kernel（按总时间排序）")
     report.append("")
