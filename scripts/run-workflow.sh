@@ -638,7 +638,7 @@ generate_nsys_serve_command() {
     nsys_cmd+=" --trace-fork-before-exec=true"
     nsys_cmd+=" --cuda-graph-trace=node"
     nsys_cmd+=" --capture-range=cudaProfilerApi"
-    nsys_cmd+=" --capture-range-end=repeat"
+    nsys_cmd+=" --capture-range-end=stop-shutdown"
     nsys_cmd+=" -o \"${nsys_output}\""
     nsys_cmd+=" --force-overwrite=true"
 
