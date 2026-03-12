@@ -3,6 +3,7 @@
 # auto-processing.sh - FlagTune 一键数据处理脚本
 #
 # 用法:
+#   ./auto-processing.sh --model qwen-3.5
 #   ./auto-processing.sh --model qwen-3.5 --optimized
 #   ./auto-processing.sh --model qwen-3.5 --nsys
 #   ./auto-processing.sh --model qwen-3.5 --nsys --skip-export
@@ -11,6 +12,7 @@
 #
 # 参数:
 #   --model NAME          使用 config.yaml.NAME 作为配置文件
+#   (默认)                不加额外参数时运行基准测试统计 (bench 不指定 -f)
 #   --optimized           运行基准测试统计 (bench -f optimized)
 #   --nsys                运行 Nsys 性能分析
 #   --skip-export         与 --nsys 配合使用，跳过 nsys 导出步骤
@@ -40,7 +42,7 @@ log_section() { echo -e "\n${CYAN}========================================${NC}"
 
 # 默认参数
 MODEL_CONFIG=""
-MODE=""
+MODE="bench"
 SKIP_EXPORT=false
 
 # 解析参数
@@ -89,11 +91,6 @@ validate_args() {
         log_error "必须指定 --model 参数"
         exit 1
     fi
-
-    if [[ -z "$MODE" ]]; then
-        log_error "必须指定运行模式: --optimized, --nsys, --shape 或 --all"
-        exit 1
-    fi
 }
 
 # 构建基础参数
@@ -101,6 +98,19 @@ build_base_args() {
     local args=()
     args+=("--model" "$MODEL_CONFIG")
     echo "${args[@]}"
+}
+
+# 运行默认基准测试统计 (bench 不带 -f)
+run_bench_default() {
+    log_section "运行基准测试统计 (默认模式)"
+
+    local base_args
+    base_args=$(build_base_args)
+
+    log_step "处理基准测试结果"
+    "${SCRIPT_DIR}/run-processing.sh" --workflow bench $base_args
+
+    log_info "基准测试统计完成"
 }
 
 # 运行 optimized 模式 (基准测试统计)
@@ -177,6 +187,9 @@ main() {
     cd "$PROJECT_ROOT"
 
     case "$MODE" in
+        bench)
+            run_bench_default
+            ;;
         optimized)
             run_optimized
             ;;
