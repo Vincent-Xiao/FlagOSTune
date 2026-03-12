@@ -8,11 +8,13 @@
 #   ./auto-processing.sh --model qwen-3.5 --nsys
 #   ./auto-processing.sh --model qwen-3.5 --nsys --skip-export
 #   ./auto-processing.sh --model qwen-3.5 --shape
+#   ./auto-processing.sh --model qwen-3.5 --warmup 2
 #   ./auto-processing.sh --model qwen-3.5 --all
 #
 # 参数:
 #   --model NAME          使用 config.yaml.NAME 作为配置文件
 #   (默认)                不加额外参数时运行基准测试统计 (bench 不指定 -f)
+#   --warmup N            跳过预热轮数 (默认 2，bench/optimized 生效)
 #   --optimized           运行基准测试统计 (bench -f optimized)
 #   --nsys                运行 Nsys 性能分析
 #   --skip-export         与 --nsys 配合使用，跳过 nsys 导出步骤
@@ -44,6 +46,7 @@ log_section() { echo -e "\n${CYAN}========================================${NC}"
 MODEL_CONFIG=""
 MODE="bench"
 SKIP_EXPORT=false
+WARMUP=2
 
 # 解析参数
 parse_args() {
@@ -64,6 +67,10 @@ parse_args() {
             --skip-export)
                 SKIP_EXPORT=true
                 shift
+                ;;
+            --warmup)
+                WARMUP="$2"
+                shift 2
                 ;;
             --shape)
                 MODE="shape"
@@ -97,6 +104,7 @@ validate_args() {
 build_base_args() {
     local args=()
     args+=("--model" "$MODEL_CONFIG")
+    args+=("--warmup" "$WARMUP")
     echo "${args[@]}"
 }
 
@@ -180,6 +188,7 @@ main() {
     log_info "FlagTune 一键数据处理"
     log_info "模型: $MODEL_CONFIG"
     log_info "模式: $MODE"
+    log_info "Warmup: $WARMUP"
     if [[ "$MODE" == "nsys" && "$SKIP_EXPORT" == true ]]; then
         log_info "跳过导出: 是"
     fi

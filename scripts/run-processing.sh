@@ -14,7 +14,7 @@
 #   --model NAME                     使用 config.yaml.NAME 作为配置文件
 #   -f FILENAME                      基准测试模式 (optimized 或空)
 #   --skip-export                    跳过 nsys 导出步骤 (仅 nsys 工作流)
-#   --warmup N                       跳过的预热轮数 (默认 1)
+#   --warmup N                       跳过的预热轮数 (默认 2)
 #
 
 set -euo pipefail
@@ -51,7 +51,7 @@ WORKFLOW=""
 MODEL_CONFIG=""
 FILENAME=""
 SKIP_EXPORT=false
-WARMUP=1
+WARMUP=2
 
 # 解析参数
 parse_args() {

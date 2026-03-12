@@ -12,21 +12,22 @@ import statistics
 from pathlib import Path
 
 SCENARIOS = [
-    # optimized scenarios
-    "p1d1024",
-    "p65536d1024",
-    # legacy scenarios (kept for compatibility)
     "p128d128",
-    "p6144d128",
-    "p30720d128",
-    "p128d6144",
-    "p6144d6144",
-    "p30720d6144",
-    "p4096d2048",
-    "p6144d1024",
-    "p4096d1024",
+    "p512d512",
+    "p1024d1024",
     "p2048d1024",
-    "p1024d1024"
+    "p4096d1024",
+    "p6144d1024",
+    "p32768d1024",
+    "p2048d2048",
+    "p4096d2048",
+    "p6144d2048",
+    "p32768d2048",
+    "p4096d4096",
+    "p6144d4096",
+    "p32768d2048",
+    "p6144d6144",
+    "p65536d1024",
 ]
 
 
@@ -84,7 +85,17 @@ def main():
         default=None,
         help="Directory containing benchmark log files"
     )
+    parser.add_argument(
+        "--warmup",
+        type=int,
+        default=2,
+        help="Number of warmup runs to skip before collecting 3 runs (default: 2)"
+    )
     args = parser.parse_args()
+
+    if args.warmup < 0:
+        print("Error: --warmup must be >= 0")
+        return 1
 
     # Use command-line argument if provided, otherwise use default
     if args.log_dir:
@@ -112,8 +123,9 @@ def main():
     print(header)
     print("-" * len(header))
 
-    # only run2, run3, run4, ignore run1
-    RUN_IDS = [2, 3, 4]
+    # Keep collecting 3 runs and skip warmup runs by shifting the run index window.
+    # warmup=2 -> [3, 4, 5], which skips run1 and run2 by default.
+    RUN_IDS = [args.warmup + i + 1 for i in range(3)]
 
     for scene in SCENARIOS:
         output_vals = []

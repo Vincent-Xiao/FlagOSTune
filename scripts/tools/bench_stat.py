@@ -149,8 +149,19 @@ def parse_text_table(text: str):
     return header, body
 
 
-def run_benchmark(script_path: Path, log_dir: str):
-    proc = subprocess.run([sys.executable, str(script_path), "--log-dir", log_dir], capture_output=True, text=True)
+def run_benchmark(script_path: Path, log_dir: str, warmup: int):
+    proc = subprocess.run(
+        [
+            sys.executable,
+            str(script_path),
+            "--log-dir",
+            log_dir,
+            "--warmup",
+            str(warmup),
+        ],
+        capture_output=True,
+        text=True,
+    )
     return proc.returncode, proc.stdout, proc.stderr
 
 
@@ -209,7 +220,7 @@ def main():
         for sd in subdirs:
             display_name = format_bench_title(sd.name)
             print(f"Running benchmark for: {display_name} ({sd})")
-            rc, out, err = run_benchmark(bench_script, str(sd))
+            rc, out, err = run_benchmark(bench_script, str(sd), args.warmup)
             if rc != 0:
                 rf.write(f"\n## {display_name} - ERROR (return code {rc})\n\n")
                 rf.write("```")
@@ -245,9 +256,8 @@ def main():
 
                 sd_map = {}
                 sd_tot_map = {}
-                # Skip warmup rounds
-                effective_rows = rows[args.warmup:] if args.warmup > 0 else rows
-                for r in effective_rows:
+                # Warmup should be handled by per-run benchmark calculation, not by dropping scenario rows.
+                for r in rows:
                     scen = r[scen_idx]
                     if scen not in scenarios_order:
                         scenarios_order.append(scen)
