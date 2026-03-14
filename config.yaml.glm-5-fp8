@@ -51,14 +51,10 @@ benchmark:
   scenarios:
     # Optimized 场景
     optimized:
-      # - name: p1024d1024
-      #   input_len: 1024
-      #   output_len: 1024
-      #   concurrency: 100    
-      - name: p4096d1024
-        input_len: 4096
+      - name: p32768d1024
+        input_len: 32768
         output_len: 1024
-        concurrency: 100
+        concurrency: 4
 
     # 完整场景 (用于 Benchmark 工作流)
     full:
