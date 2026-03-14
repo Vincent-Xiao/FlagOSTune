@@ -70,7 +70,7 @@ GEMS_ONCE=true  # GEMS_ONCE 参数
 PRETUNE=false  # 输出目录是否追加 pretune 后缀
 MODEL_CONFIG=""  # 模型配置后缀，如 "deepseek-3.2"
 CUSTOM_SUFFIX=""  # 自定义日志路径后缀
-RUNS_OVERRIDE=""  # 覆盖 benchmark.num_runs
+RUNS_OVERRIDE=""  # 覆盖 benchmark.num_runs（--torch 模式下固定为 2）
 
 # 解析参数
 parse_args() {
@@ -268,8 +268,16 @@ update_tool_config() {
     benchmark_host=$(yq '.benchmark.host // "127.0.0.1"' "$CONFIG_FILE")
     benchmark_num_runs=$(yq '.benchmark.num_runs // 4' "$CONFIG_FILE")
 
+    # --torch 模式下固定 runs=2（优先级最高）
+    if [[ "$TORCH_PROFILE" == "true" ]]; then
+        benchmark_num_runs=2
+        if [[ -n "$RUNS_OVERRIDE" ]]; then
+            log_warn "--torch 模式下 --runs 参数将被忽略，强制 benchmark.num_runs=2"
+        else
+            log_info "--torch 模式: 强制 benchmark.num_runs=2"
+        fi
     # --runs 优先级高于配置文件
-    if [[ -n "$RUNS_OVERRIDE" ]]; then
+    elif [[ -n "$RUNS_OVERRIDE" ]]; then
         benchmark_num_runs="$RUNS_OVERRIDE"
         log_info "使用命令行覆盖运行次数: benchmark.num_runs=${benchmark_num_runs}"
     fi
