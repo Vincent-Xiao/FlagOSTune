@@ -14,7 +14,7 @@
 #   --model NAME          使用 config.yaml.NAME 作为配置文件
 #   --gems-mode MODE      FlagGems 模式 (all|NULL|算子名)
 #   --ops-file FILE       算子列表文件
-#   --optimized           优化模式
+#   --scenario TYPE       测试场景 (optimized|full|shape)，默认 optimized
 #   --nsys                Nsys 性能分析
 #   --torch               Torch 性能分析
 #   --run-idle            仅启动服务器不运行测试
@@ -60,7 +60,7 @@ MODE="cuda"
 DEVICE=0
 GEMS_MODE="all"
 OPS_FILE=""
-OPTIMIZED=false
+SCENARIO_TYPE="optimized"
 NSYS_PROFILE=false
 TORCH_PROFILE=false
 RUN_IDLE=false
@@ -92,9 +92,9 @@ parse_args() {
                 OPS_FILE="$2"
                 shift 2
                 ;;
-            --optimized)
-                OPTIMIZED=true
-                shift
+            --scenario|--scnario)
+                SCENARIO_TYPE="$2"
+                shift 2
                 ;;
             --nsys)
                 NSYS_PROFILE=true
@@ -173,6 +173,18 @@ resolve_config_file() {
     fi
 }
 
+# 验证参数
+validate_args() {
+    case "$SCENARIO_TYPE" in
+        optimized|full|shape)
+            ;;
+        *)
+            log_error "--scenario 仅支持: optimized, full, shape；当前值: $SCENARIO_TYPE"
+            exit 1
+            ;;
+    esac
+}
+
 # 检查依赖
 check_dependencies() {
     local missing=()
@@ -212,13 +224,6 @@ read_config() {
         REPORT_PREFIX="${PATHS_REPORTS}"
     fi
 
-    # 读取场景配置
-    if [[ "$OPTIMIZED" == "true" ]]; then
-        SCENARIO_TYPE="optimized"
-    else
-        SCENARIO_TYPE="full"
-    fi
-
     PORT=$((PORT_BASE + DEVICE))
 }
 
@@ -233,8 +238,9 @@ update_tool_config() {
     fi
 
     # 构建其他后缀
-    local optimized_suffix=""
-    [[ "$OPTIMIZED" == "true" ]] && optimized_suffix="_optimized"
+    local scenario_suffix=""
+    [[ "$SCENARIO_TYPE" == "optimized" ]] && scenario_suffix="_optimized"
+    [[ "$SCENARIO_TYPE" == "shape" ]] && scenario_suffix="_shape"
 
     local nsys_suffix=""
     [[ "$NSYS_PROFILE" == "true" ]] && nsys_suffix="_nsys_profile"
@@ -247,7 +253,8 @@ update_tool_config() {
     yq -i ".current_run.device = $DEVICE" "$TOOL_CONFIG"
     yq -i ".current_run.port = $PORT" "$TOOL_CONFIG"
     yq -i ".current_run.gems.mode = \"$GEMS_MODE\"" "$TOOL_CONFIG"
-    yq -i ".current_run.optimized = $OPTIMIZED" "$TOOL_CONFIG"
+    yq -i ".current_run.optimized = false" "$TOOL_CONFIG"
+    yq -i ".current_run.scenario_type = \"$SCENARIO_TYPE\"" "$TOOL_CONFIG"
     yq -i ".current_run.nsys_profile = $NSYS_PROFILE" "$TOOL_CONFIG"
     yq -i ".current_run.torch_profile = $TORCH_PROFILE" "$TOOL_CONFIG"
 
@@ -302,7 +309,7 @@ update_tool_config() {
     fi
 
     # 更新日志路径 (包含模型名和 shape 后缀)
-    local log_dir="${PATH_PREFIX}/bench${optimized_suffix}${nsys_suffix}${torch_suffix}_log${shape_suffix}/vllm_bench_${MODE}${gems_suffix}${custom_suffix}_logs"
+    local log_dir="${PATH_PREFIX}/bench${scenario_suffix}${nsys_suffix}${torch_suffix}_log${shape_suffix}/vllm_bench_${MODE}${gems_suffix}${custom_suffix}_logs"
     local server_log_dir="${PATH_PREFIX}/server-logs${shape_suffix}"
     local nsys_output_dir="${PATH_PREFIX}/nsys-raw${shape_suffix}${custom_suffix}"
     local torch_output_dir="${PATH_PREFIX}/torch-raw${shape_suffix}${custom_suffix}"
@@ -343,8 +350,9 @@ generate_server_log_file() {
     local gems_suffix=""
     [[ "$MODE" == "gems" ]] && gems_suffix="_${GEMS_MODE}"
 
-    local optimized_suffix=""
-    [[ "$OPTIMIZED" == "true" ]] && optimized_suffix="_optimized"
+    local scenario_suffix=""
+    [[ "$SCENARIO_TYPE" == "optimized" ]] && scenario_suffix="_optimized"
+    [[ "$SCENARIO_TYPE" == "shape" ]] && scenario_suffix="_shape"
 
     local nsys_suffix=""
     [[ "$NSYS_PROFILE" == "true" ]] && nsys_suffix="_nsys_profile"
@@ -369,7 +377,7 @@ generate_server_log_file() {
     mkdir -p "${PROJECT_ROOT}/${server_log_dir}"
 
     # 返回日志文件路径
-    echo "${PROJECT_ROOT}/${server_log_dir}/vllm_bench_${MODE}${gems_suffix}${optimized_suffix}${nsys_suffix}${torch_suffix}${shape_suffix}${custom_suffix}_server.log"
+    echo "${PROJECT_ROOT}/${server_log_dir}/vllm_bench_${MODE}${gems_suffix}${scenario_suffix}${nsys_suffix}${torch_suffix}${shape_suffix}${custom_suffix}_server.log"
 }
 
 # 生成 vllm serve 命令
@@ -819,9 +827,11 @@ main() {
 
     log_info "FlagTune 工作流调度器"
     log_info "模式: $MODE, 设备: $DEVICE"
+    log_info "场景: $SCENARIO_TYPE"
 
     check_dependencies
     resolve_config_file
+    validate_args
     read_config
 
     cd "$PROJECT_ROOT"

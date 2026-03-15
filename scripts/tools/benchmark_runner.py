@@ -45,9 +45,14 @@ def load_config() -> dict:
 
 def get_scenarios(config: dict) -> list:
     """获取测试场景"""
-    optimized = config.get('current_run', {}).get('optimized', False)
+    current_run = config.get('current_run', {})
+    scenario_type = current_run.get('scenario_type')
 
-    scenario_type = 'optimized' if optimized else 'full'
+    # 兼容旧配置：如果没有 scenario_type，则回退到 optimized 布尔值
+    if not scenario_type:
+        optimized = current_run.get('optimized', False)
+        scenario_type = 'optimized' if optimized else 'full'
+
     scenarios = config.get('benchmark', {}).get('scenarios', {}).get(scenario_type, [])
 
     # 默认场景

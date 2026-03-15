@@ -4,21 +4,20 @@
 #
 # 用法:
 #   ./auto-processing.sh --model qwen-3.5
-#   ./auto-processing.sh --model qwen-3.5 --optimized
+#   ./auto-processing.sh --model qwen-3.5 --scenario optimized
+#   ./auto-processing.sh --model qwen-3.5 --scenario full
+#   ./auto-processing.sh --model qwen-3.5 --scenario shape
 #   ./auto-processing.sh --model qwen-3.5 --nsys
 #   ./auto-processing.sh --model qwen-3.5 --nsys --skip-export
-#   ./auto-processing.sh --model qwen-3.5 --shape
 #   ./auto-processing.sh --model qwen-3.5 --warmup 2
 #   ./auto-processing.sh --model qwen-3.5 --all
 #
 # 参数:
 #   --model NAME          使用 config.yaml.NAME 作为配置文件
-#   (默认)                不加额外参数时运行基准测试统计 (bench 不指定 -f)
+#   --scenario TYPE       场景类型 (optimized|full|shape，默认 optimized)
 #   --warmup N            跳过预热轮数 (默认 2，bench/optimized 生效)
-#   --optimized           运行基准测试统计 (bench -f optimized)
 #   --nsys                运行 Nsys 性能分析
 #   --skip-export         与 --nsys 配合使用，跳过 nsys 导出步骤
-#   --shape               运行 Shape 分析
 #   --all                 依次运行 shape → optimized → nsys
 #
 
@@ -44,7 +43,8 @@ log_section() { echo -e "\n${CYAN}========================================${NC}"
 
 # 默认参数
 MODEL_CONFIG=""
-MODE="bench"
+MODE="scenario"
+SCENARIO="optimized"
 SKIP_EXPORT=false
 WARMUP=2
 
@@ -56,9 +56,9 @@ parse_args() {
                 MODEL_CONFIG="$2"
                 shift 2
                 ;;
-            --optimized)
-                MODE="optimized"
-                shift
+            --scenario|--scnario)
+                SCENARIO="$2"
+                shift 2
                 ;;
             --nsys)
                 MODE="nsys"
@@ -71,10 +71,6 @@ parse_args() {
             --warmup)
                 WARMUP="$2"
                 shift 2
-                ;;
-            --shape)
-                MODE="shape"
-                shift
                 ;;
             --all)
                 MODE="all"
@@ -98,6 +94,15 @@ validate_args() {
         log_error "必须指定 --model 参数"
         exit 1
     fi
+
+    case "$SCENARIO" in
+        optimized|full|shape)
+            ;;
+        *)
+            log_error "--scenario 仅支持: optimized, full, shape；当前值: $SCENARIO"
+            exit 1
+            ;;
+    esac
 }
 
 # 构建基础参数
@@ -108,9 +113,9 @@ build_base_args() {
     echo "${args[@]}"
 }
 
-# 运行默认基准测试统计 (bench 不带 -f)
-run_bench_default() {
-    log_section "运行基准测试统计 (默认模式)"
+# 运行 full 场景基准测试统计 (bench 不带 -f)
+run_bench_full() {
+    log_section "运行基准测试统计 (full 场景)"
 
     local base_args
     base_args=$(build_base_args)
@@ -121,9 +126,9 @@ run_bench_default() {
     log_info "基准测试统计完成"
 }
 
-# 运行 optimized 模式 (基准测试统计)
-run_optimized() {
-    log_section "运行基准测试统计 (Optimized)"
+# 运行 optimized 场景基准测试统计
+run_bench_optimized() {
+    log_section "运行基准测试统计 (optimized 场景)"
 
     local base_args
     base_args=$(build_base_args)
@@ -152,7 +157,7 @@ run_nsys() {
     log_info "Nsys 分析完成"
 }
 
-# 运行 shape 模式
+# 运行 shape 场景
 run_shape() {
     log_section "运行 Shape 分析"
 
@@ -172,7 +177,7 @@ run_all() {
     run_shape
     echo ""
 
-    run_optimized
+    run_bench_optimized
     echo ""
 
     run_nsys
@@ -188,6 +193,7 @@ main() {
     log_info "FlagTune 一键数据处理"
     log_info "模型: $MODEL_CONFIG"
     log_info "模式: $MODE"
+    log_info "场景: $SCENARIO"
     log_info "Warmup: $WARMUP"
     if [[ "$MODE" == "nsys" && "$SKIP_EXPORT" == true ]]; then
         log_info "跳过导出: 是"
@@ -196,17 +202,21 @@ main() {
     cd "$PROJECT_ROOT"
 
     case "$MODE" in
-        bench)
-            run_bench_default
-            ;;
-        optimized)
-            run_optimized
+        scenario)
+            case "$SCENARIO" in
+                optimized)
+                    run_bench_optimized
+                    ;;
+                full)
+                    run_bench_full
+                    ;;
+                shape)
+                    run_shape
+                    ;;
+            esac
             ;;
         nsys)
             run_nsys
-            ;;
-        shape)
-            run_shape
             ;;
         all)
             run_all

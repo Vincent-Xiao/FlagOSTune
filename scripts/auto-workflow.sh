@@ -3,20 +3,23 @@
 # auto-workflow.sh - FlagTune 一键基准测试脚本
 #
 # 用法:
-#   ./auto-workflow.sh --model qwen-3.5 --optimized
+#   ./auto-workflow.sh --model qwen-3.5
+#   ./auto-workflow.sh --model qwen-3.5 --scenario optimized
+#   ./auto-workflow.sh --model qwen-3.5 --scenario full
+#   ./auto-workflow.sh --model qwen-3.5 --scenario shape
 #   ./auto-workflow.sh --model qwen-3.5 --nsys
 #   ./auto-workflow.sh --model qwen-3.5 --nsys --cuda
 #   ./auto-workflow.sh --model qwen-3.5 --nsys --gems
-#   ./auto-workflow.sh --model qwen-3.5 --shape
+#   ./auto-workflow.sh --model qwen-3.5 --torch
 #   ./auto-workflow.sh --model qwen-3.5 --all
 #
 # 参数:
 #   --model NAME          使用 config.yaml.NAME 作为配置文件
-#   --optimized           运行优化模式 (cuda + gems)
+#   --scenario TYPE       场景类型 (optimized|full|shape，默认 optimized)
 #   --nsys                运行 nsys profiling 模式 (cuda + gems)
-#   --cuda                与 --nsys 配合使用，仅运行 CUDA nsys
-#   --gems                与 --nsys 配合使用，仅运行 GEMS nsys
-#   --shape               运行 shape 分析模式 (gems with GEMS_ONCE=false)
+#   --torch               运行 torch profiling 模式 (cuda + gems)
+#   --cuda                与 --nsys/--torch 配合使用，仅运行 CUDA profiling
+#   --gems                与 --nsys/--torch 配合使用，仅运行 GEMS profiling
 #   --all                 依次运行 shape → optimized → nsys
 #   --device N            GPU 设备 ID (默认 0)
 #
@@ -44,7 +47,8 @@ log_section() { echo -e "\n${CYAN}========================================${NC}"
 # 默认参数
 MODEL_CONFIG=""
 DEVICE=0
-MODE=""
+MODE="scenario"
+SCENARIO="optimized"
 NSYS_TARGET=""  # cuda, gems, or empty (both)
 
 # 解析参数
@@ -59,12 +63,16 @@ parse_args() {
                 DEVICE="$2"
                 shift 2
                 ;;
-            --optimized)
-                MODE="optimized"
-                shift
+            --scenario|--scnario)
+                SCENARIO="$2"
+                shift 2
                 ;;
             --nsys)
                 MODE="nsys"
+                shift
+                ;;
+            --torch)
+                MODE="torch"
                 shift
                 ;;
             --cuda)
@@ -73,10 +81,6 @@ parse_args() {
                 ;;
             --gems)
                 NSYS_TARGET="gems"
-                shift
-                ;;
-            --shape)
-                MODE="shape"
                 shift
                 ;;
             --all)
@@ -102,10 +106,14 @@ validate_args() {
         exit 1
     fi
 
-    if [[ -z "$MODE" ]]; then
-        log_error "必须指定运行模式: --optimized, --nsys, --shape 或 --all"
-        exit 1
-    fi
+    case "$SCENARIO" in
+        optimized|full|shape)
+            ;;
+        *)
+            log_error "--scenario 仅支持: optimized, full, shape；当前值: $SCENARIO"
+            exit 1
+            ;;
+    esac
 }
 
 # 构建 run-workflow 命令的基础参数
@@ -116,67 +124,103 @@ build_base_args() {
     echo "${args[@]}"
 }
 
-# 运行 optimized 模式
-run_optimized() {
-    log_section "运行 Optimized 模式"
+# 运行指定场景
+run_scenario() {
+    if [[ "$SCENARIO" == "shape" ]]; then
+        log_section "运行 Shape 场景 (GEMS_ONCE=false)"
+    else
+        log_section "运行 ${SCENARIO} 场景"
+    fi
 
     local base_args
     base_args=$(build_base_args)
 
-    log_step "1/2: CUDA 优化模式"
-    "${SCRIPT_DIR}/run-workflow.sh" --mode cuda $base_args --optimized
+    if [[ "$SCENARIO" == "shape" ]]; then
+        log_step "1/1: GEMS Shape 场景"
+        "${SCRIPT_DIR}/run-workflow.sh" --mode gems --gems-mode all $base_args --scenario shape --gems-once false
+        log_info "Shape 场景完成"
+        return 0
+    fi
 
-    log_step "2/2: GEMS 优化模式"
-    "${SCRIPT_DIR}/run-workflow.sh" --mode gems --gems-mode all $base_args --optimized
+    log_step "1/2: CUDA 场景 (${SCENARIO})"
+    "${SCRIPT_DIR}/run-workflow.sh" --mode cuda $base_args --scenario "$SCENARIO"
 
-    log_info "Optimized 模式完成"
+    log_step "2/2: GEMS 场景 (${SCENARIO})"
+    "${SCRIPT_DIR}/run-workflow.sh" --mode gems --gems-mode all $base_args --scenario "$SCENARIO"
+
+    log_info "场景运行完成"
 }
 
 # 运行 nsys 模式
 run_nsys() {
     log_section "运行 NSYS Profiling 模式"
 
+    local profile_scenario="optimized"
+    if [[ "$SCENARIO" != "$profile_scenario" ]]; then
+        log_warn "--nsys 模式固定使用 optimized 场景，忽略 --scenario=$SCENARIO"
+    fi
+
     local base_args
     base_args=$(build_base_args)
 
     # 根据 NSYS_TARGET 决定运行哪些
     if [[ -z "$NSYS_TARGET" || "$NSYS_TARGET" == "cuda" ]]; then
-        log_step "CUDA NSYS Profiling"
-        "${SCRIPT_DIR}/run-workflow.sh" --mode cuda $base_args --optimized --nsys
+        log_step "CUDA NSYS Profiling (${profile_scenario})"
+        "${SCRIPT_DIR}/run-workflow.sh" --mode cuda $base_args --scenario "$profile_scenario" --nsys
     fi
 
     if [[ -z "$NSYS_TARGET" || "$NSYS_TARGET" == "gems" ]]; then
-        log_step "GEMS NSYS Profiling"
-        "${SCRIPT_DIR}/run-workflow.sh" --mode gems --gems-mode all $base_args --optimized --nsys
+        log_step "GEMS NSYS Profiling (${profile_scenario})"
+        "${SCRIPT_DIR}/run-workflow.sh" --mode gems --gems-mode all $base_args --scenario "$profile_scenario" --nsys
     fi
 
     log_info "NSYS Profiling 模式完成"
 }
 
-# 运行 shape 模式
-run_shape() {
-    log_section "运行 Shape 分析模式"
+# 运行 torch 模式
+run_torch() {
+    log_section "运行 Torch Profiling 模式"
+
+    local profile_scenario="optimized"
+    if [[ "$SCENARIO" != "$profile_scenario" ]]; then
+        log_warn "--torch 模式固定使用 optimized 场景，忽略 --scenario=$SCENARIO"
+    fi
 
     local base_args
     base_args=$(build_base_args)
 
-    log_step "GEMS Shape 分析 (GEMS_ONCE=false)"
-    "${SCRIPT_DIR}/run-workflow.sh" --mode gems --gems-mode all $base_args --optimized --gems-once false
+    # 复用 --cuda/--gems 目标筛选
+    if [[ -z "$NSYS_TARGET" || "$NSYS_TARGET" == "cuda" ]]; then
+        log_step "CUDA Torch Profiling (${profile_scenario})"
+        "${SCRIPT_DIR}/run-workflow.sh" --mode cuda $base_args --scenario "$profile_scenario" --torch
+    fi
 
-    log_info "Shape 模式完成"
+    if [[ -z "$NSYS_TARGET" || "$NSYS_TARGET" == "gems" ]]; then
+        log_step "GEMS Torch Profiling (${profile_scenario})"
+        "${SCRIPT_DIR}/run-workflow.sh" --mode gems --gems-mode all $base_args --scenario "$profile_scenario" --torch
+    fi
+
+    log_info "Torch Profiling 模式完成"
 }
 
 # 运行所有模式
 run_all() {
     log_section "运行所有模式 (shape → optimized → nsys)"
 
-    run_shape
+    local original_scenario="$SCENARIO"
+
+    SCENARIO="shape"
+    run_scenario
     echo ""
 
-    run_optimized
+    SCENARIO="optimized"
+    run_scenario
     echo ""
 
+    SCENARIO="optimized"
     run_nsys
+
+    SCENARIO="$original_scenario"
 
     log_info "所有模式完成"
 }
@@ -190,21 +234,25 @@ main() {
     log_info "模型: $MODEL_CONFIG"
     log_info "设备: $DEVICE"
     log_info "模式: $MODE"
+    log_info "场景: $SCENARIO"
     if [[ "$MODE" == "nsys" && -n "$NSYS_TARGET" ]]; then
         log_info "NSYS 目标: $NSYS_TARGET"
+    fi
+    if [[ "$MODE" == "torch" && -n "$NSYS_TARGET" ]]; then
+        log_info "Torch 目标: $NSYS_TARGET"
     fi
 
     cd "$PROJECT_ROOT"
 
     case "$MODE" in
-        optimized)
-            run_optimized
+        scenario)
+            run_scenario
             ;;
         nsys)
             run_nsys
             ;;
-        shape)
-            run_shape
+        torch)
+            run_torch
             ;;
         all)
             run_all
