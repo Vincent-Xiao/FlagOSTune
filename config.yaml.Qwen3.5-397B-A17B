@@ -40,7 +40,7 @@ benchmark:
   # 端口基数 (实际端口 = port_base + device)
   port_base: 2345
   # 每个场景运行次数
-  num_runs: 4
+  num_runs: 5
 
   # 测试场景列表
   # name: 场景名称
@@ -53,7 +53,7 @@ benchmark:
       - name: p32768d1024
         input_len: 32768
         output_len: 1024
-        concurrency: 4
+        concurrency: 8
 
     # 完整场景 (用于 Benchmark 工作流)
     full:
@@ -72,7 +72,7 @@ benchmark:
       - name: p2048d1024
         input_len: 2048
         output_len: 1024
-        concurrency: 64
+        concurrency: 100
       - name: p4096d1024
         input_len: 4096
         output_len: 1024
@@ -84,11 +84,11 @@ benchmark:
       - name: p32768d1024
         input_len: 32768
         output_len: 1024
-        concurrency: 4
+        concurrency: 8
       - name: p2048d2048
         input_len: 2048
         output_len: 2048
-        concurrency: 64         
+        concurrency: 100         
       - name: p4096d2048
         input_len: 4096
         output_len: 2048
@@ -120,12 +120,26 @@ benchmark:
       - name: p65536d1024
         input_len: 65536
         output_len: 6144
-        concurrency: 2
+        concurrency: 4
 
-
-
-
-
+    # shape场景 (用于导出shape)
+    shape:             
+      - name: p1024d1024
+        input_len: 1024
+        output_len: 1024
+        concurrency: 100
+      - name: p4096d1024
+        input_len: 4096
+        output_len: 1024
+        concurrency: 64                   
+      - name: p32768d1024
+        input_len: 32768
+        output_len: 1024
+        concurrency: 8
+      - name: p65536d1024
+        input_len: 65536
+        output_len: 6144
+        concurrency: 4
 
 # ===================
 # 目标算子列表
