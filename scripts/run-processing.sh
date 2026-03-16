@@ -6,12 +6,13 @@
 #   ./run-processing.sh --workflow bench -f optimized
 #   ./run-processing.sh --workflow nsys --model qwen-3.5
 #   ./run-processing.sh --workflow nsys --model qwen-3.5 --skip-export
+#   ./run-processing.sh --workflow torch --model qwen-3.5
 #   ./run-processing.sh --workflow shape
 #   ./run-processing.sh --workflow shape --report
 #   ./run-processing.sh --workflow all --model qwen-3.5
 #
 # 参数:
-#   --workflow bench|nsys|shape|all  工作流选择
+#   --workflow bench|nsys|torch|shape|all  工作流选择
 #   --model NAME                     使用 config.yaml.NAME 作为配置文件
 #   -f FILENAME                      基准测试模式 (optimized 或空)
 #   --skip-export                    跳过 nsys 导出步骤 (仅 nsys 工作流)
@@ -160,6 +161,7 @@ update_tool_config() {
     yq -i ".paths.log_dir = \"${path_prefix}/bench_log\"" "$TOOL_CONFIG"
     yq -i ".paths.reports_dir = \"$report_prefix\"" "$TOOL_CONFIG"
     yq -i ".paths.nsys_output_dir = \"${path_prefix}/nsys-raw\"" "$TOOL_CONFIG"
+    yq -i ".paths.torch_output_dir = \"${path_prefix}/torch-raw\"" "$TOOL_CONFIG"
     yq -i ".paths.gems_config_dir = \"${path_prefix}/gems-config\"" "$TOOL_CONFIG"
     yq -i ".paths.gems_config_shape_dir = \"${path_prefix}/gems-config-shape\"" "$TOOL_CONFIG"
 
@@ -262,6 +264,30 @@ run_nsys_workflow() {
     log_info "Nsys 分析完成"
 }
 
+# 运行 Torch profiler 分析工作流
+run_torch_workflow() {
+    log_step "运行 Torch profiler 分析工作流..."
+
+    local model_name=$(get_config_value "paths.model_name" "default")
+    local paths_results=$(get_config_value "paths.results" "results")
+    local torch_output_dir
+    torch_output_dir=$(get_config_value "paths.torch_output_dir" "${paths_results}/${model_name}/torch-raw")
+
+    local python_exe="${Python_EXECUTABLE:-python3}"
+    local perf_script="${SCRIPT_DIR}/tools/perf_analysis_torch.py"
+
+    if [[ ! -f "$perf_script" ]]; then
+        log_error "脚本不存在: $perf_script"
+        exit 1
+    fi
+
+    log_info "运行: $python_exe $perf_script --torch_path $torch_output_dir"
+    cd "$PROJECT_ROOT"
+    $python_exe "$perf_script" --torch_path "$torch_output_dir"
+
+    log_info "Torch profiler 分析完成"
+}
+
 # 运行 Shape 分析工作流
 run_shape_workflow() {
     log_step "运行 Shape 分析工作流..."
@@ -345,6 +371,9 @@ run_report_only_workflow() {
         shape)
             run_bench_report "shape"
             ;;
+        torch)
+            run_torch_workflow
+            ;;
         all)
             run_bench_workflow
             echo ""
@@ -360,16 +389,16 @@ run_report_only_workflow() {
 validate_workflow() {
     if [[ -z "$WORKFLOW" ]]; then
         log_error "必须指定 --workflow 参数"
-        log_info "可用的工作流: bench, nsys, shape, all"
+        log_info "可用的工作流: bench, nsys, torch, shape, all"
         exit 1
     fi
 
     case "$WORKFLOW" in
-        bench|nsys|shape|all)
+        bench|nsys|torch|shape|all)
             ;;
         *)
             log_error "未知的工作流: $WORKFLOW"
-            log_info "可用的工作流: bench, nsys, shape, all"
+            log_info "可用的工作流: bench, nsys, torch, shape, all"
             exit 1
             ;;
     esac
@@ -404,6 +433,9 @@ main() {
             ;;
         nsys)
             run_nsys_workflow
+            ;;
+        torch)
+            run_torch_workflow
             ;;
         shape)
             run_shape_workflow

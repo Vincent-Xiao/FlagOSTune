@@ -1,24 +1,28 @@
 #!/usr/bin/env python3
 """Torch profiler analysis for CUDA vs FlagGems.
 
-Input (default):
-- results/{model_name}/torch-raw/report-cuda/*.pt.trace.json
-- results/{model_name}/torch-raw/report-gems-all/*.pt.trace.json
-- results/{model_name}/torch-raw/report-*/profiler_out_*.txt (optional)
+输入:
+- --torch_path: 包含 report-cuda / report-gems-all 的目录
+- 未指定时从 tool_config.yaml 读取: results/{model_name}/torch-raw
 
-Output (default):
-- reports/{model_name}/perf_analysis_torch.md
-- reports/{model_name}/perf_analysis_torch.xlsx
-- reports/{model_name}/shape_analysis_torch.md
-- reports/{model_name}/shape_analysis_torch.xlsx
+输出:
+- --output_path: 报告输出目录
+- 未指定时从 tool_config.yaml 读取: reports/{model_name}/
+
+默认生成:
+- perf_analysis_torch.md / perf_analysis_torch.xlsx
+- shape_analysis_torch.md / shape_analysis_torch.xlsx
 """
 
 from __future__ import annotations
 
 import argparse
+import os
 import json
 import math
+import numbers
 import re
+from concurrent.futures import ProcessPoolExecutor
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
@@ -26,6 +30,11 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 import yaml
 from openpyxl import Workbook
+
+try:
+    import ijson  # type: ignore
+except ImportError:  # pragma: no cover
+    ijson = None
 
 
 def get_project_root() -> Path:
@@ -76,8 +85,19 @@ def normalize_kernel_name(kernel_name: str) -> str:
 def infer_aten_op(kernel_name: str) -> str:
     lower = kernel_name.lower()
 
+    def has_token(token: str) -> bool:
+        return re.search(rf"(^|[^a-z0-9]){re.escape(token)}([^a-z0-9]|$)", lower) is not None
+
     if lower.startswith("aten::"):
         return kernel_name
+    if "nccldevkernel_allreduce" in lower or has_token("allreduce"):
+        return "aten::all_reduce"
+    if "nccldevkernel_allgather" in lower or has_token("allgather"):
+        return "aten::all_gather"
+    if "nccldevkernel_reducescatter" in lower or has_token("reducescatter"):
+        return "aten::reduce_scatter"
+    if "nccldevkernel_alltoall" in lower or has_token("alltoall"):
+        return "aten::all_to_all"
     if lower.startswith("triton_poi_fused_"):
         return "triton::fused_pointwise"
     if lower.startswith("triton_per_fused_"):
@@ -90,6 +110,8 @@ def infer_aten_op(kernel_name: str) -> str:
         return "vllm::fused_moe"
     if "fused_recurrent_gated_delta_rule_fwd_kernel" in lower:
         return "vllm::fused_recurrent_gated_delta_rule_fwd"
+    if "gdn_attention_core" in lower or "fused_gdn_gating_kernel" in lower or "deltarule" in lower:
+        return "vllm::gdn_attention_core"
     if "topkgating" in lower:
         return "vllm::topk_gating"
     if "moe_align_block_size" in lower:
@@ -98,10 +120,66 @@ def infer_aten_op(kernel_name: str) -> str:
         return "vllm::reshape_and_cache"
     if "prepare_varlen_num_blocks" in lower:
         return "vllm::prepare_varlen_num_blocks"
+    if "causal_conv1d" in lower:
+        return "aten::conv1d"
+    if "flashattn" in lower or "flash::" in lower or "fmha" in lower or "mqa_logits" in lower:
+        return "aten::scaled_dot_product_attention"
+    if lower.startswith("zeros_kernel"):
+        return "aten::zeros"
+    if lower.startswith("ones_kernel"):
+        return "aten::ones"
+    if lower.startswith("full_func_scalar"):
+        return "aten::full"
+    if lower.startswith("fill_scalar_func_kernel"):
+        return "aten::fill_"
+    if "fillfunctor" in lower:
+        return "aten::fill_"
+    if lower.startswith("sigmoid_forward"):
+        return "aten::sigmoid"
+    if "sigmoid_kernel_cuda" in lower:
+        return "aten::sigmoid"
+    if lower.startswith("sub_func_"):
+        return "aten::sub"
+    if lower.startswith("true_div_func_") or "divfunctor" in lower:
+        return "aten::div"
+    if lower.startswith("gt_func_") or "compare_scalar_kernel" in lower:
+        return "aten::gt"
+    if "cudafunctor_add" in lower or "cudafunctoronself_add" in lower:
+        return "aten::add"
+    if lower == "_index_jit_function":
+        return "aten::index"
+    if lower == "_index_put_jit_function":
+        return "aten::index_put"
+    if lower == "_scatter_jit_function":
+        return "aten::scatter"
+    if "index_put_kernel_impl" in lower:
+        return "aten::index_put"
+    if "index_kernel_impl" in lower:
+        return "aten::index"
+    if "vectorized_gather_kernel" in lower or has_token("gather"):
+        return "aten::gather"
+    if "_scatter_gather_elementwise_kernel" in lower or has_token("scatter"):
+        return "aten::scatter"
+    if lower == "l2norm_fwd_kernel2":
+        return "aten::linalg_vector_norm"
+    if lower == "nonzero_kernel":
+        return "aten::nonzero"
+    if lower.startswith("bitwise_not_func") or "bitwise_not_kernel_cuda" in lower:
+        return "aten::bitwise_not"
+    if lower.startswith("memcpy") or "memcpy" in lower or "copy" in lower:
+        return "aten::copy_"
+    if lower.startswith("gemv_kernel") or "gemv2t_kernel" in lower or "cublasgemv" in lower:
+        return "aten::mv"
+    if lower.startswith("dot_kernel"):
+        return "aten::dot"
+    if lower.startswith("reduce_then_scan") or lower.startswith("reduce_kernel") or lower.startswith("reduce_1block_kernel"):
+        return "aten::reduce"
+    if "splitkreduce" in lower:
+        return "aten::reduce"
+    if "masked_fill_kernel" in lower or "masked_fill" in lower:
+        return "aten::masked_fill"
     if "softmax" in lower:
         return "aten::softmax"
-    if "copy" in lower:
-        return "aten::copy_"
     if "sum" in lower:
         return "aten::sum"
     if "mul" in lower:
@@ -140,6 +218,11 @@ def parse_self_cuda_total_us(txt_path: Path) -> float:
 
 def iter_trace_events(trace_path: Path) -> Iterable[Dict[str, Any]]:
     """Iterate trace events without loading the whole JSON into memory."""
+    if ijson is not None:
+        with trace_path.open("rb") as f:
+            yield from ijson.items(f, "traceEvents.item")
+        return
+
     in_trace_events = False
     collecting = False
     braces = 0
@@ -240,16 +323,79 @@ def parse_trace_stats(trace_file: Path) -> Tuple[Dict[str, Tuple[str, str]], Lis
 
         if cat == "kernel":
             dur = event.get("dur", 0.0)
-            if not isinstance(dur, (int, float)):
+            if not isinstance(dur, numbers.Number):
                 continue
             name = normalize_kernel_name(str(event.get("name", "unknown")))
-            ext = int(ext_id) if isinstance(ext_id, int) else -1
+            ext = int(ext_id) if isinstance(ext_id, numbers.Number) and not isinstance(ext_id, bool) else -1
             kernel_events.append((name, ext, float(dur)))
 
     return cpu_info, kernel_events
 
 
-def parse_profile_dir(report_dir: Path) -> Tuple[List[KernelStat], List[MmKernelShapeStat], float]:
+def parse_trace_file_aggregates(
+    trace_file: Path,
+) -> Tuple[Dict[Tuple[str, str], Tuple[int, float]], Dict[Tuple[str, str, str], Tuple[int, float]]]:
+    cpu_info: Dict[str, Tuple[str, str]] = {}
+    kernel_agg: Dict[Tuple[str, str], List[float]] = defaultdict(lambda: [0.0, 0.0])
+    mm_shape_agg: Dict[Tuple[str, str, str], List[float]] = defaultdict(lambda: [0.0, 0.0])
+
+    for event in iter_trace_events(trace_file):
+        if event.get("ph") != "X":
+            continue
+
+        cat = str(event.get("cat", ""))
+        args = event.get("args") if isinstance(event.get("args"), dict) else {}
+        ext_id = args.get("External id")
+
+        if cat == "cpu_op" and ext_id is not None:
+            name = str(event.get("name", "unknown"))
+            shape = format_input_dims(args.get("Input Dims"))
+            cpu_info[str(ext_id)] = (name, shape)
+            continue
+
+        if cat != "kernel":
+            continue
+
+        dur = event.get("dur", 0.0)
+        if not isinstance(dur, numbers.Number):
+            continue
+
+        kernel_name = normalize_kernel_name(str(event.get("name", "unknown")))
+        ext = int(ext_id) if isinstance(ext_id, numbers.Number) and not isinstance(ext_id, bool) else -1
+
+        cpu_name = None
+        input_shape = "N/A"
+        if ext >= 0:
+            pair = cpu_info.get(str(ext))
+            if pair:
+                cpu_name, input_shape = pair
+
+        if cpu_name and cpu_name.startswith("aten::"):
+            framework_op = cpu_name
+        else:
+            framework_op = infer_aten_op(kernel_name)
+
+        kk = (framework_op, kernel_name)
+        kernel_agg[kk][0] += 1.0
+        kernel_agg[kk][1] += float(dur)
+
+        if framework_op == "aten::mm":
+            sk = (framework_op, kernel_name, input_shape)
+            mm_shape_agg[sk][0] += 1.0
+            mm_shape_agg[sk][1] += float(dur)
+
+    return (
+        {k: (int(v[0]), float(v[1])) for k, v in kernel_agg.items()},
+        {k: (int(v[0]), float(v[1])) for k, v in mm_shape_agg.items()},
+    )
+
+
+def get_default_workers(num_files: int) -> int:
+    cpu = os.cpu_count() or 1
+    return max(1, min(num_files, cpu, 4))
+
+
+def parse_profile_dir(report_dir: Path, workers: int = 1) -> Tuple[List[KernelStat], List[MmKernelShapeStat], float]:
     trace_files = sorted(report_dir.glob("*.pt.trace.json"))
     if not trace_files:
         raise SystemExit(f"Missing trace file in {report_dir}")
@@ -261,30 +407,19 @@ def parse_profile_dir(report_dir: Path) -> Tuple[List[KernelStat], List[MmKernel
     kernel_agg: Dict[Tuple[str, str], List[float]] = defaultdict(lambda: [0.0, 0.0])
     mm_shape_agg: Dict[Tuple[str, str, str], List[float]] = defaultdict(lambda: [0.0, 0.0])
 
-    for trace_file in trace_files:
-        cpu_info, kernel_events = parse_trace_stats(trace_file)
+    if workers <= 1:
+        parsed_results = [parse_trace_file_aggregates(trace_file) for trace_file in trace_files]
+    else:
+        with ProcessPoolExecutor(max_workers=workers) as executor:
+            parsed_results = list(executor.map(parse_trace_file_aggregates, trace_files))
 
-        for kernel_name, ext_id, dur_us in kernel_events:
-            cpu_name = None
-            input_shape = "N/A"
-            if ext_id >= 0:
-                pair = cpu_info.get(str(ext_id))
-                if pair:
-                    cpu_name, input_shape = pair
-
-            if cpu_name and cpu_name.startswith("aten::"):
-                framework_op = cpu_name
-            else:
-                framework_op = infer_aten_op(kernel_name)
-
-            kk = (framework_op, kernel_name)
-            kernel_agg[kk][0] += 1.0
-            kernel_agg[kk][1] += dur_us
-
-            if framework_op == "aten::mm":
-                sk = (framework_op, kernel_name, input_shape)
-                mm_shape_agg[sk][0] += 1.0
-                mm_shape_agg[sk][1] += dur_us
+    for file_kernel_agg, file_mm_shape_agg in parsed_results:
+        for kk, (calls, total_us) in file_kernel_agg.items():
+            kernel_agg[kk][0] += float(calls)
+            kernel_agg[kk][1] += total_us
+        for sk, (calls, total_us) in file_mm_shape_agg.items():
+            mm_shape_agg[sk][0] += float(calls)
+            mm_shape_agg[sk][1] += total_us
 
     kernel_stats = [
         KernelStat(name=kname, aten_op=op, calls=int(vals[0]), total_us=vals[1])
@@ -450,9 +585,27 @@ def write_excel_tables(path: Path, tables: List[Dict[str, Any]]) -> None:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Analyze torch profiler outputs for CUDA and FlagGems")
-    parser.add_argument("--torch_path", type=str, default=None, help="Path containing report-cuda/report-gems-all")
-    parser.add_argument("--output_path", type=str, default=None, help="Output report directory")
+    parser = argparse.ArgumentParser(description="FlagGems vs CUDA torch profiler 性能对比分析")
+    parser.add_argument(
+        "--torch_path",
+        "--input_path",
+        dest="torch_path",
+        type=str,
+        default=None,
+        help="包含 report-cuda 和 report-gems-all 的目录路径",
+    )
+    parser.add_argument(
+        "--output_path",
+        type=str,
+        default=None,
+        help="报告输出目录路径（会自动创建）",
+    )
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=None,
+        help="并行解析 trace 文件的进程数，默认自动选择（最多 4）",
+    )
     return parser.parse_args()
 
 
@@ -475,8 +628,11 @@ def main() -> None:
     out_shape_md = output_dir / "shape_analysis_torch.md"
     out_shape_xlsx = output_dir / "shape_analysis_torch.xlsx"
 
-    cuda_stats, cuda_mm_stats, cuda_total_ref_us = parse_profile_dir(cuda_dir)
-    gems_stats, gems_mm_stats, gems_total_ref_us = parse_profile_dir(gems_dir)
+    trace_file_count = len(list(cuda_dir.glob("*.pt.trace.json"))) + len(list(gems_dir.glob("*.pt.trace.json")))
+    workers = args.workers if args.workers is not None else get_default_workers(trace_file_count)
+
+    cuda_stats, cuda_mm_stats, cuda_total_ref_us = parse_profile_dir(cuda_dir, workers=workers)
+    gems_stats, gems_mm_stats, gems_total_ref_us = parse_profile_dir(gems_dir, workers=workers)
 
     cuda_agg = aggregate_by_aten(cuda_stats)
     gems_agg = aggregate_by_aten(gems_stats)

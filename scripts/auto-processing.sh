@@ -7,12 +7,13 @@
 #   ./auto-processing.sh --model qwen-3.5 --workflow shape
 #   ./auto-processing.sh --model qwen-3.5 --workflow nsys
 #   ./auto-processing.sh --model qwen-3.5 --workflow nsys --skip-export
+#   ./auto-processing.sh --model qwen-3.5 --workflow torch
 #   ./auto-processing.sh --model qwen-3.5 --warmup 2
 #   ./auto-processing.sh --model qwen-3.5 --workflow all
 #
 # 参数:
 #   --model NAME          使用 config.yaml.NAME 作为配置文件
-#   --workflow TYPE       工作流类型 (bench|nsys|shape|all，默认 bench)
+#   --workflow TYPE       工作流类型 (bench|nsys|torch|shape|all，默认 bench)
 #   --warmup N            跳过预热轮数 (默认 2，bench/optimized 生效)
 #   --skip-export         与 --workflow nsys 配合使用，跳过 nsys 导出步骤
 #   --report              透传给 run-processing.sh，仅执行报告生成相关逻辑
@@ -89,10 +90,10 @@ validate_args() {
     fi
 
     case "$WORKFLOW" in
-        bench|nsys|shape|all)
+        bench|nsys|torch|shape|all)
             ;;
         *)
-            log_error "--workflow 仅支持: bench, nsys, shape, all；当前值: $WORKFLOW"
+            log_error "--workflow 仅支持: bench, nsys, torch, shape, all；当前值: $WORKFLOW"
             exit 1
             ;;
     esac
@@ -153,6 +154,19 @@ run_shape() {
     log_info "Shape 分析完成"
 }
 
+# 运行 torch profiler 场景
+run_torch() {
+    log_section "运行 Torch profiler 性能分析"
+
+    local base_args
+    base_args=$(build_base_args)
+
+    log_step "分析 Torch profiler 性能数据"
+    "${SCRIPT_DIR}/run-processing.sh" --workflow torch $base_args
+
+    log_info "Torch profiler 分析完成"
+}
+
 # 运行所有模式
 run_all() {
     log_section "运行所有处理流程 (shape → optimized → nsys)"
@@ -205,6 +219,9 @@ main() {
             ;;
         nsys)
             run_nsys
+            ;;
+        torch)
+            run_torch
             ;;
         all)
             run_all
