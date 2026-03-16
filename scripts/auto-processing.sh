@@ -3,22 +3,19 @@
 # auto-processing.sh - FlagTune 一键数据处理脚本
 #
 # 用法:
-#   ./auto-processing.sh --model qwen-3.5
-#   ./auto-processing.sh --model qwen-3.5 --scenario optimized
-#   ./auto-processing.sh --model qwen-3.5 --scenario full
-#   ./auto-processing.sh --model qwen-3.5 --scenario shape
-#   ./auto-processing.sh --model qwen-3.5 --nsys
-#   ./auto-processing.sh --model qwen-3.5 --nsys --skip-export
+#   ./auto-processing.sh --model qwen-3.5 --workflow bench
+#   ./auto-processing.sh --model qwen-3.5 --workflow shape
+#   ./auto-processing.sh --model qwen-3.5 --workflow nsys
+#   ./auto-processing.sh --model qwen-3.5 --workflow nsys --skip-export
 #   ./auto-processing.sh --model qwen-3.5 --warmup 2
-#   ./auto-processing.sh --model qwen-3.5 --all
+#   ./auto-processing.sh --model qwen-3.5 --workflow all
 #
 # 参数:
 #   --model NAME          使用 config.yaml.NAME 作为配置文件
-#   --scenario TYPE       场景类型 (optimized|full|shape，默认 optimized)
+#   --workflow TYPE       工作流类型 (bench|nsys|shape|all，默认 bench)
 #   --warmup N            跳过预热轮数 (默认 2，bench/optimized 生效)
-#   --nsys                运行 Nsys 性能分析
-#   --skip-export         与 --nsys 配合使用，跳过 nsys 导出步骤
-#   --all                 依次运行 shape → optimized → nsys
+#   --skip-export         与 --workflow nsys 配合使用，跳过 nsys 导出步骤
+#   --report              透传给 run-processing.sh，仅执行报告生成相关逻辑
 #
 
 set -euo pipefail
@@ -43,9 +40,9 @@ log_section() { echo -e "\n${CYAN}========================================${NC}"
 
 # 默认参数
 MODEL_CONFIG=""
-MODE="scenario"
-SCENARIO="optimized"
+WORKFLOW="bench"
 SKIP_EXPORT=false
+REPORT=false
 WARMUP=2
 
 # 解析参数
@@ -56,25 +53,21 @@ parse_args() {
                 MODEL_CONFIG="$2"
                 shift 2
                 ;;
-            --scenario|--scnario)
-                SCENARIO="$2"
+            --workflow)
+                WORKFLOW="$2"
                 shift 2
-                ;;
-            --nsys)
-                MODE="nsys"
-                shift
                 ;;
             --skip-export)
                 SKIP_EXPORT=true
                 shift
                 ;;
+            --report)
+                REPORT=true
+                shift
+                ;;
             --warmup)
                 WARMUP="$2"
                 shift 2
-                ;;
-            --all)
-                MODE="all"
-                shift
                 ;;
             -h|--help)
                 head -25 "$0" | tail -23
@@ -95,11 +88,11 @@ validate_args() {
         exit 1
     fi
 
-    case "$SCENARIO" in
-        optimized|full|shape)
+    case "$WORKFLOW" in
+        bench|nsys|shape|all)
             ;;
         *)
-            log_error "--scenario 仅支持: optimized, full, shape；当前值: $SCENARIO"
+            log_error "--workflow 仅支持: bench, nsys, shape, all；当前值: $WORKFLOW"
             exit 1
             ;;
     esac
@@ -110,30 +103,20 @@ build_base_args() {
     local args=()
     args+=("--model" "$MODEL_CONFIG")
     args+=("--warmup" "$WARMUP")
+    if [[ "$REPORT" == true ]]; then
+        args+=("--report")
+    fi
     echo "${args[@]}"
 }
 
-# 运行 full 场景基准测试统计 (bench 不带 -f)
-run_bench_full() {
-    log_section "运行基准测试统计 (full 场景)"
+# 运行 optimized 场景基准测试统计
+run_bench() {
+    log_section "运行基准测试统计 (bench)"
 
     local base_args
     base_args=$(build_base_args)
 
     log_step "处理基准测试结果"
-    "${SCRIPT_DIR}/run-processing.sh" --workflow bench $base_args
-
-    log_info "基准测试统计完成"
-}
-
-# 运行 optimized 场景基准测试统计
-run_bench_optimized() {
-    log_section "运行基准测试统计 (optimized 场景)"
-
-    local base_args
-    base_args=$(build_base_args)
-
-    log_step "处理优化模式基准测试结果"
     "${SCRIPT_DIR}/run-processing.sh" --workflow bench -f optimized $base_args
 
     log_info "基准测试统计完成"
@@ -174,10 +157,20 @@ run_shape() {
 run_all() {
     log_section "运行所有处理流程 (shape → optimized → nsys)"
 
+    if [[ "$REPORT" == true ]]; then
+        local base_args
+        base_args=$(build_base_args)
+
+        log_step "仅执行报告生成相关流程"
+        "${SCRIPT_DIR}/run-processing.sh" --workflow all $base_args
+        log_info "报告生成完成"
+        return 0
+    fi
+
     run_shape
     echo ""
 
-    run_bench_optimized
+    run_bench
     echo ""
 
     run_nsys
@@ -192,28 +185,23 @@ main() {
 
     log_info "FlagTune 一键数据处理"
     log_info "模型: $MODEL_CONFIG"
-    log_info "模式: $MODE"
-    log_info "场景: $SCENARIO"
+    log_info "工作流: $WORKFLOW"
     log_info "Warmup: $WARMUP"
-    if [[ "$MODE" == "nsys" && "$SKIP_EXPORT" == true ]]; then
+    if [[ "$REPORT" == true ]]; then
+        log_info "生成报告: 是 (--report)"
+    fi
+    if [[ "$WORKFLOW" == "nsys" && "$SKIP_EXPORT" == true ]]; then
         log_info "跳过导出: 是"
     fi
 
     cd "$PROJECT_ROOT"
 
-    case "$MODE" in
-        scenario)
-            case "$SCENARIO" in
-                optimized)
-                    run_bench_optimized
-                    ;;
-                full)
-                    run_bench_full
-                    ;;
-                shape)
-                    run_shape
-                    ;;
-            esac
+    case "$WORKFLOW" in
+        bench)
+            run_bench
+            ;;
+        shape)
+            run_shape
             ;;
         nsys)
             run_nsys

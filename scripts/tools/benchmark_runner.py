@@ -10,6 +10,7 @@ benchmark_runner.py - FlagTune 基准测试执行器
 
 import subprocess
 import sys
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -135,8 +136,8 @@ def build_benchmark_command(scenario: dict, config: dict, is_last_run: bool = Fa
             '--num-prompts', str(concurrency),
             '--max-concurrency', str(concurrency),
         ]
-        if is_last_run:
-            cmd.append('--profile')
+        # if is_last_run:
+        #     cmd.append('--profile')
 
     return cmd
 
@@ -184,6 +185,88 @@ def run_benchmark(scenario: dict, run_id: int, config: dict):
     print(f"[{timestamp}] {status}: {name} Run {run_id} (exit code: {result.returncode})\n")
 
 
+def append_shape_scenario_marker(scenario: dict, config: dict) -> None:
+    """在 shape 场景下，记录每个 benchmark 在 gems-all.txt 的开始行号。"""
+    if not should_append_shape_marker(config):
+        return
+
+    model_name = str(config.get('model', {}).get('name', 'unknown-model'))
+    scenario_name = str(scenario.get('name', 'unknown-scenario'))
+
+    project_root = get_project_root()
+    shape_dir = project_root / 'results' / model_name / 'gems-config-shape'
+    shape_dir.mkdir(parents=True, exist_ok=True)
+
+    gems_all_file = shape_dir / 'gems-all.txt'
+    marker_file = shape_dir / 'marker.txt'
+
+    # 静默窗口检测: gems-all.txt 在一段时间内 size/mtime 均不变化，认为当前写入已稳定
+    if gems_all_file.exists():
+        stable_rounds = 10
+        stable_interval_sec = 0.2
+        timeout_sec = 10.0
+        stable_count = 0
+        last_sig = None
+        start_ts = time.time()
+
+        while time.time() - start_ts < timeout_sec:
+            st = gems_all_file.stat()
+            cur_sig = (st.st_size, st.st_mtime_ns)
+
+            if cur_sig == last_sig:
+                stable_count += 1
+                if stable_count >= stable_rounds:
+                    break
+            else:
+                stable_count = 0
+                last_sig = cur_sig
+
+            time.sleep(stable_interval_sec)
+        else:
+            print(f"[WARN] gems-all.txt 静默窗口检测超时，继续按当前内容记录行号: {gems_all_file}")
+
+    # 记录 scenario 开始前 gems-all.txt 的当前行号
+    start_line = 0
+    if gems_all_file.exists():
+        with gems_all_file.open('r', encoding='utf-8', errors='ignore') as f:
+            start_line = sum(1 for _ in f)
+
+    marker = f"{model_name}-{scenario_name}：{start_line}\n"
+    with marker_file.open('a', encoding='utf-8') as f:
+        f.write(marker)
+
+    print(f"[INFO] shape 标记已记录: {marker.strip()} -> {marker_file}")
+
+
+def reset_shape_marker_file(config: dict) -> None:
+    """在 shape 场景运行开始前清理 marker.txt。"""
+    if not should_append_shape_marker(config):
+        return
+
+    model_name = str(config.get('model', {}).get('name', 'unknown-model'))
+    marker_file = get_project_root() / 'results' / model_name / 'gems-config-shape' / 'marker.txt'
+
+    if marker_file.exists():
+        marker_file.unlink()
+        print(f"[INFO] 已删除旧 marker 文件: {marker_file}")
+
+
+def should_append_shape_marker(config: dict) -> bool:
+    """仅在 shape 场景且 gems.once=false 时返回 True。"""
+    current_run = config.get('current_run', {})
+    scenario_type = current_run.get('scenario_type', '')
+    if scenario_type != 'shape':
+        return False
+
+    once_val = current_run.get('gems', {}).get('once', True)
+    if isinstance(once_val, str):
+        once_bool = once_val.strip().lower() == 'true'
+    else:
+        once_bool = bool(once_val)
+
+    return not once_bool
+
+
 def main():
     print("=" * 60)
     print("FlagTune Benchmark Runner")
@@ -197,6 +280,9 @@ def main():
     print(f"Port: {config.get('current_run', {}).get('port', 2345)}")
     print(f"Model: {config.get('model', {}).get('name', 'unknown')}")
 
+    # 每次 shape 运行开始前先清空 marker 文件
+    reset_shape_marker_file(config)
+
     # 获取场景
     scenarios = get_scenarios(config)
     num_runs = config.get('benchmark', {}).get('num_runs', 4)
@@ -205,6 +291,9 @@ def main():
 
     # 运行所有场景
     for scenario in scenarios:
+        # 每个 shape scenario benchmark 开始前追加一次标记
+        append_shape_scenario_marker(scenario, config)
+
         for run_id in range(1, num_runs + 1):
             run_benchmark(scenario, run_id, config)
 

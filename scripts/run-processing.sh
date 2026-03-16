@@ -7,6 +7,7 @@
 #   ./run-processing.sh --workflow nsys --model qwen-3.5
 #   ./run-processing.sh --workflow nsys --model qwen-3.5 --skip-export
 #   ./run-processing.sh --workflow shape
+#   ./run-processing.sh --workflow shape --report
 #   ./run-processing.sh --workflow all --model qwen-3.5
 #
 # 参数:
@@ -14,6 +15,7 @@
 #   --model NAME                     使用 config.yaml.NAME 作为配置文件
 #   -f FILENAME                      基准测试模式 (optimized 或空)
 #   --skip-export                    跳过 nsys 导出步骤 (仅 nsys 工作流)
+#   --report                         仅执行报告生成相关逻辑
 #   --warmup N                       跳过的预热轮数 (默认 2)
 #
 
@@ -51,6 +53,7 @@ WORKFLOW=""
 MODEL_CONFIG=""
 FILENAME=""
 SKIP_EXPORT=false
+REPORT=false
 WARMUP=2
 
 # 解析参数
@@ -71,6 +74,10 @@ parse_args() {
                 ;;
             --skip-export)
                 SKIP_EXPORT=true
+                shift
+                ;;
+            --report)
+                REPORT=true
                 shift
                 ;;
             --warmup)
@@ -273,7 +280,8 @@ run_shape_workflow() {
 
     # Shape 分析使用 gems-config-shape 目录 (GEMS_ONCE=false 时生成)
     local input_file="${paths_results}/${model_name}/gems-config-shape/gems-all.txt"
-    local output_file="reports/${model_name}/gems_shape_info.txt"
+    local marker_file="${paths_results}/${model_name}/gems-config-shape/marker.txt"
+    local output_dir="reports/${model_name}/shape"
 
     # 检查输入文件是否存在
     if [[ ! -f "${PROJECT_ROOT}/${input_file}" ]]; then
@@ -282,11 +290,36 @@ run_shape_workflow() {
         input_file="gems-config/gems-all.txt"
     fi
 
-    log_info "运行: $python_exe $shape_script --input $input_file --output $output_file"
+    if [[ ! -f "${PROJECT_ROOT}/${marker_file}" ]]; then
+        log_warn "marker 文件不存在: ${marker_file}"
+        log_info "降级为单文件统计输出: reports/${model_name}/gems_shape_info.txt"
+        local output_file="reports/${model_name}/gems_shape_info.txt"
+        log_info "运行: $python_exe $shape_script --input $input_file --output $output_file"
+        cd "$PROJECT_ROOT"
+        $python_exe "$shape_script" --input "$input_file" --output "$output_file"
+        log_info "Shape 分析完成"
+        return
+    fi
+
+    log_info "运行: $python_exe $shape_script --input $input_file --marker $marker_file --output-dir $output_dir"
     cd "$PROJECT_ROOT"
-    $python_exe "$shape_script" --input "$input_file" --output "$output_file"
+    $python_exe "$shape_script" --input "$input_file" --marker "$marker_file" --output-dir "$output_dir"
 
     log_info "Shape 分析完成"
+}
+
+# 生成指定场景的 bench 统计报告
+run_bench_report() {
+    local scenario="$1"
+
+    log_step "生成 ${scenario} 场景 bench 报告..."
+
+    local old_filename="$FILENAME"
+    FILENAME="$scenario"
+    run_bench_workflow
+    FILENAME="$old_filename"
+
+    log_info "${scenario} 场景报告生成完成"
 }
 
 # 运行所有工作流
@@ -300,6 +333,27 @@ run_all_workflows() {
     run_shape_workflow
 
     log_info "所有工作流完成"
+}
+
+run_report_only_workflow() {
+    log_step "仅执行报告生成流程..."
+
+    case "$WORKFLOW" in
+        bench)
+            run_bench_workflow
+            ;;
+        shape)
+            run_bench_report "shape"
+            ;;
+        all)
+            run_bench_workflow
+            echo ""
+            run_bench_report "shape"
+            ;;
+        nsys)
+            log_warn "--report 当前未定义 nsys 专用报告流程，未执行任何操作"
+            ;;
+    esac
 }
 
 # 验证工作流参数
@@ -327,6 +381,9 @@ main() {
 
     log_info "FlagTune 数据处理工作流调度器"
     log_info "工作流: ${WORKFLOW:-未指定}"
+    if [[ "$REPORT" == true ]]; then
+        log_info "模式: 仅生成报告 (--report)"
+    fi
 
     validate_workflow
     check_dependencies
@@ -334,6 +391,12 @@ main() {
     update_tool_config
 
     cd "$PROJECT_ROOT"
+
+    if [[ "$REPORT" == true ]]; then
+        run_report_only_workflow
+        log_info "完成!"
+        return 0
+    fi
 
     case "$WORKFLOW" in
         bench)

@@ -253,6 +253,7 @@ update_tool_config() {
     yq -i ".current_run.device = $DEVICE" "$TOOL_CONFIG"
     yq -i ".current_run.port = $PORT" "$TOOL_CONFIG"
     yq -i ".current_run.gems.mode = \"$GEMS_MODE\"" "$TOOL_CONFIG"
+    yq -i ".current_run.gems.once = $GEMS_ONCE" "$TOOL_CONFIG"
     yq -i ".current_run.optimized = false" "$TOOL_CONFIG"
     yq -i ".current_run.scenario_type = \"$SCENARIO_TYPE\"" "$TOOL_CONFIG"
     yq -i ".current_run.nsys_profile = $NSYS_PROFILE" "$TOOL_CONFIG"
