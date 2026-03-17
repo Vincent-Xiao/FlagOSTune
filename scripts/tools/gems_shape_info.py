@@ -54,13 +54,23 @@ def parse_line(line: str):
     if not op_match:
         return None
 
-    op_name = normalize_text(op_match.group(1))
-    if "DEBUG" in op_name or "[" in op_name or "]" in op_name:
+    raw_op_name = normalize_text(op_match.group(1))
+    if "DEBUG" in raw_op_name or "[" in raw_op_name or "]" in raw_op_name:
         return None
-    if not re.match(r"^[A-Za-z_][A-Za-z0-9_\.]*$", op_name):
+    if not re.match(r"^[A-Za-z_][A-Za-z0-9_\.]*$", raw_op_name):
         return None
-    if not op_name.startswith("flag_gems.ops."):
+
+    if ".ops." not in raw_op_name:
         return None
+
+    op_suffix = raw_op_name.split(".ops.", 1)[1]
+    if not op_suffix or not re.match(r"^[A-Za-z_][A-Za-z0-9_\.]*$", op_suffix):
+        return None
+
+    # Normalize backend-specific implementations, e.g.
+    # flag_gems.runtime.backend._nvidia.hopper.ops.mm.general_mm
+    # -> flag_gems.ops.mm.general_mm
+    op_name = f"flag_gems.ops.{op_suffix}"
 
     shape_part = line.split("[shape info]:", 1)[1].strip()
 

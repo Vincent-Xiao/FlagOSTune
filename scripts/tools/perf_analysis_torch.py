@@ -26,7 +26,7 @@ from concurrent.futures import ProcessPoolExecutor
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
 
 import yaml
 from openpyxl import Workbook
@@ -82,6 +82,19 @@ def normalize_kernel_name(kernel_name: str) -> str:
     return name
 
 
+def merge_name(existing: Optional[Set[str]], new_name: str) -> Set[str]:
+    names = set(existing or set())
+    if new_name:
+        names.add(new_name)
+    return names
+
+
+def merge_shape(existing: str, new_shape: str) -> str:
+    if existing == "N/A" and new_shape != "N/A":
+        return new_shape
+    return existing
+
+
 def infer_aten_op(kernel_name: str) -> str:
     lower = kernel_name.lower()
 
@@ -112,6 +125,8 @@ def infer_aten_op(kernel_name: str) -> str:
         return "vllm::fused_recurrent_gated_delta_rule_fwd"
     if "gdn_attention_core" in lower or "fused_gdn_gating_kernel" in lower or "deltarule" in lower:
         return "vllm::gdn_attention_core"
+    if "cross_device_reduce_1stage" in lower:
+        return "vllm::cross_device_reduce"
     if "topkgating" in lower:
         return "vllm::topk_gating"
     if "moe_align_block_size" in lower:
@@ -120,6 +135,22 @@ def infer_aten_op(kernel_name: str) -> str:
         return "vllm::reshape_and_cache"
     if "prepare_varlen_num_blocks" in lower:
         return "vllm::prepare_varlen_num_blocks"
+    if "concat_and_cache_mla_kernel" in lower:
+        return "vllm::reshape_and_cache"
+    if "indexer_k_quant_and_cache_kernel" in lower:
+        return "vllm::reshape_and_cache"
+    if "_convert_req_index_to_global_index_kernel" in lower:
+        return "vllm::convert_req_index_to_global_index"
+    if "per_token_group_quant_8bit_kernel" in lower:
+        return "vllm::per_token_group_quant"
+    if "count_and_sort_expert_tokens_kernel" in lower:
+        return "vllm::count_and_sort_expert_tokens"
+    if "blockexpertprefixsumkernel" in lower or "globalexpertprefixsumkernel" in lower or "mergeexpertprefixsumkernel" in lower:
+        return "vllm::count_and_sort_expert_tokens"
+    if "expandinputrowskernel" in lower:
+        return "vllm::expand_input_rows"
+    if "topkperrowdecode" in lower or "topkperrowprefill" in lower or "vllm::topk_kernel" in lower:
+        return "aten::topk"
     if "causal_conv1d" in lower:
         return "aten::conv1d"
     if "flashattn" in lower or "flash::" in lower or "fmha" in lower or "mqa_logits" in lower:
@@ -299,12 +330,28 @@ def format_input_dims(dims: Any) -> str:
     return ", ".join(parts) if parts else "N/A"
 
 
-def parse_trace_stats(trace_file: Path) -> Tuple[Dict[str, Tuple[str, str]], List[Tuple[str, int, float]]]:
-    """Return (external_id -> (cpu_op, input_shape), kernel_events).
+def resolve_framework_op(cpu_names: Set[str], kernel_name: str) -> str:
+    inferred = infer_aten_op(kernel_name)
+    if not cpu_names:
+        return inferred
+
+    preferred_prefixes = ("aten::", "vllm::", "triton::")
+    preferred_names = sorted({name for name in cpu_names if name.startswith(preferred_prefixes)})
+    if len(preferred_names) == 1:
+        return preferred_names[0]
+    if inferred != "unknown":
+        return inferred
+    if preferred_names:
+        return preferred_names[0]
+    return sorted(cpu_names)[0]
+
+
+def parse_trace_stats(trace_file: Path) -> Tuple[Dict[str, Tuple[Set[str], str]], List[Tuple[str, int, float]]]:
+    """Return (external_id -> (cpu_ops, input_shape), kernel_events).
 
     kernel_events item: (kernel_name, external_id, dur_us)
     """
-    cpu_info: Dict[str, Tuple[str, str]] = {}
+    cpu_info: Dict[str, Tuple[Set[str], str]] = {}
     kernel_events: List[Tuple[str, int, float]] = []
 
     for event in iter_trace_events(trace_file):
@@ -318,7 +365,9 @@ def parse_trace_stats(trace_file: Path) -> Tuple[Dict[str, Tuple[str, str]], Lis
         if cat == "cpu_op" and ext_id is not None:
             name = str(event.get("name", "unknown"))
             shape = format_input_dims(args.get("Input Dims"))
-            cpu_info[str(ext_id)] = (name, shape)
+            ext_key = str(ext_id)
+            existing_names, existing_shape = cpu_info.get(ext_key, (set(), "N/A"))
+            cpu_info[ext_key] = (merge_name(existing_names, name), merge_shape(existing_shape, shape))
             continue
 
         if cat == "kernel":
@@ -335,7 +384,7 @@ def parse_trace_stats(trace_file: Path) -> Tuple[Dict[str, Tuple[str, str]], Lis
 def parse_trace_file_aggregates(
     trace_file: Path,
 ) -> Tuple[Dict[Tuple[str, str], Tuple[int, float]], Dict[Tuple[str, str, str], Tuple[int, float]]]:
-    cpu_info: Dict[str, Tuple[str, str]] = {}
+    cpu_info: Dict[str, Tuple[Set[str], str]] = {}
     kernel_agg: Dict[Tuple[str, str], List[float]] = defaultdict(lambda: [0.0, 0.0])
     mm_shape_agg: Dict[Tuple[str, str, str], List[float]] = defaultdict(lambda: [0.0, 0.0])
 
@@ -350,7 +399,9 @@ def parse_trace_file_aggregates(
         if cat == "cpu_op" and ext_id is not None:
             name = str(event.get("name", "unknown"))
             shape = format_input_dims(args.get("Input Dims"))
-            cpu_info[str(ext_id)] = (name, shape)
+            ext_key = str(ext_id)
+            existing_names, existing_shape = cpu_info.get(ext_key, (set(), "N/A"))
+            cpu_info[ext_key] = (merge_name(existing_names, name), merge_shape(existing_shape, shape))
             continue
 
         if cat != "kernel":
@@ -363,17 +414,14 @@ def parse_trace_file_aggregates(
         kernel_name = normalize_kernel_name(str(event.get("name", "unknown")))
         ext = int(ext_id) if isinstance(ext_id, numbers.Number) and not isinstance(ext_id, bool) else -1
 
-        cpu_name = None
+        cpu_names: Set[str] = set()
         input_shape = "N/A"
         if ext >= 0:
             pair = cpu_info.get(str(ext))
             if pair:
-                cpu_name, input_shape = pair
+                cpu_names, input_shape = pair
 
-        if cpu_name and cpu_name.startswith("aten::"):
-            framework_op = cpu_name
-        else:
-            framework_op = infer_aten_op(kernel_name)
+        framework_op = resolve_framework_op(cpu_names, kernel_name)
 
         kk = (framework_op, kernel_name)
         kernel_agg[kk][0] += 1.0
@@ -393,6 +441,36 @@ def parse_trace_file_aggregates(
 def get_default_workers(num_files: int) -> int:
     cpu = os.cpu_count() or 1
     return max(1, min(num_files, cpu, 4))
+
+
+def select_canonical_framework_op(stats: List[KernelStat], kernel_name: str) -> str:
+    inferred = infer_aten_op(kernel_name)
+    if inferred != "unknown":
+        return inferred
+
+    best = max(stats, key=lambda item: (item.total_us, item.calls, item.aten_op))
+    return best.aten_op
+
+
+def collapse_kernel_stats_by_name(stats: List[KernelStat]) -> List[KernelStat]:
+    by_name: Dict[str, List[KernelStat]] = defaultdict(list)
+    for item in stats:
+        by_name[item.name].append(item)
+
+    collapsed: List[KernelStat] = []
+    for kernel_name, items in by_name.items():
+        canonical_op = select_canonical_framework_op(items, kernel_name)
+        collapsed.append(
+            KernelStat(
+                name=kernel_name,
+                aten_op=canonical_op,
+                calls=sum(item.calls for item in items),
+                total_us=sum(item.total_us for item in items),
+            )
+        )
+
+    collapsed.sort(key=lambda x: x.total_us, reverse=True)
+    return collapsed
 
 
 def parse_profile_dir(report_dir: Path, workers: int = 1) -> Tuple[List[KernelStat], List[MmKernelShapeStat], float]:
@@ -425,7 +503,7 @@ def parse_profile_dir(report_dir: Path, workers: int = 1) -> Tuple[List[KernelSt
         KernelStat(name=kname, aten_op=op, calls=int(vals[0]), total_us=vals[1])
         for (op, kname), vals in kernel_agg.items()
     ]
-    kernel_stats.sort(key=lambda x: x.total_us, reverse=True)
+    kernel_stats = collapse_kernel_stats_by_name(kernel_stats)
 
     mm_stats = [
         MmKernelShapeStat(
@@ -638,8 +716,6 @@ def main() -> None:
     gems_agg = aggregate_by_aten(gems_stats)
 
     report: List[str] = []
-    report.append("# Torch Profiler CUDA vs FlagGems Performance Analysis")
-    report.append("")
 
     cuda_headers = ["框架算子名", "执行算子名", "调用次数", "总时间(ms)", "平均时间(us)", "占比"]
     cuda_rows: List[List[str]] = []
@@ -698,22 +774,22 @@ def main() -> None:
         sort_by="speedup_desc",
     )
 
-    report.append("## CUDA kernel (sorted by total time)")
+    report.append("## CUDA kernel（按总时间排序）")
     report.append("")
     report.append(md_table(cuda_headers, cuda_rows))
     report.append("")
 
-    report.append("## FlagGems kernel (sorted by total time)")
+    report.append("## FlagGems kernel（按总时间排序）")
     report.append("")
     report.append(md_table(gems_headers, gems_rows))
     report.append("")
 
-    report.append("## CUDA vs FlagGems (sorted by CUDA total time)")
+    report.append("## CUDA 和 FlagGems kernel 对比（按 CUDA 总时间排序）")
     report.append("")
     report.append(md_table(compare_headers, compare_cuda_rows))
     report.append("")
 
-    report.append("## CUDA vs FlagGems (sorted by speedup)")
+    report.append("## CUDA 和 FlagGems kernel 对比（按加速比从高到低）")
     report.append("")
     report.append(md_table(compare_headers, compare_speed_rows))
     report.append("")

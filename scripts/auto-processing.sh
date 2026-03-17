@@ -5,6 +5,7 @@
 # 用法:
 #   ./auto-processing.sh --model qwen-3.5 --workflow bench
 #   ./auto-processing.sh --model qwen-3.5 --workflow shape
+#   ./auto-processing.sh --model qwen-3.5 --workflow shape --gems-mode mm
 #   ./auto-processing.sh --model qwen-3.5 --workflow nsys
 #   ./auto-processing.sh --model qwen-3.5 --workflow nsys --skip-export
 #   ./auto-processing.sh --model qwen-3.5 --workflow torch
@@ -14,6 +15,7 @@
 # 参数:
 #   --model NAME          使用 config.yaml.NAME 作为配置文件
 #   --workflow TYPE       工作流类型 (bench|nsys|torch|shape|all，默认 bench)
+#   --gems-mode MODE      Shape 工作流使用的 FlagGems 模式 (默认 all)
 #   --warmup N            跳过预热轮数 (默认 2，bench/optimized 生效)
 #   --skip-export         与 --workflow nsys 配合使用，跳过 nsys 导出步骤
 #   --report              透传给 run-processing.sh，仅执行报告生成相关逻辑
@@ -45,6 +47,7 @@ WORKFLOW="bench"
 SKIP_EXPORT=false
 REPORT=false
 WARMUP=2
+GEMS_MODE="all"
 
 # 解析参数
 parse_args() {
@@ -56,6 +59,10 @@ parse_args() {
                 ;;
             --workflow)
                 WORKFLOW="$2"
+                shift 2
+                ;;
+            --gems-mode)
+                GEMS_MODE="$2"
                 shift 2
                 ;;
             --skip-export)
@@ -107,6 +114,7 @@ build_base_args() {
     if [[ "$REPORT" == true ]]; then
         args+=("--report")
     fi
+    args+=("--gems-mode" "$GEMS_MODE")
     echo "${args[@]}"
 }
 
@@ -200,6 +208,7 @@ main() {
     log_info "FlagTune 一键数据处理"
     log_info "模型: $MODEL_CONFIG"
     log_info "工作流: $WORKFLOW"
+    log_info "Gems Mode: $GEMS_MODE"
     log_info "Warmup: $WARMUP"
     if [[ "$REPORT" == true ]]; then
         log_info "生成报告: 是 (--report)"

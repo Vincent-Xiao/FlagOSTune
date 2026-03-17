@@ -11,6 +11,7 @@
 #   ./auto-workflow.sh --model qwen-3.5 --nsys --cuda
 #   ./auto-workflow.sh --model qwen-3.5 --nsys --gems
 #   ./auto-workflow.sh --model qwen-3.5 --torch
+#   ./auto-workflow.sh --model qwen-3.5 --scenario shape --gems-mode mm
 #   ./auto-workflow.sh --model qwen-3.5 --all
 #
 # 参数:
@@ -20,6 +21,7 @@
 #   --torch               运行 torch profiling 模式 (cuda + gems)
 #   --cuda                与 --nsys/--torch 配合使用，仅运行 CUDA profiling
 #   --gems                与 --nsys/--torch 配合使用，仅运行 GEMS profiling
+#   --gems-mode MODE      FlagGems 模式 (默认 all)
 #   --all                 依次运行 shape → optimized → nsys
 #   --device N            GPU 设备 ID (默认 0)
 #
@@ -49,6 +51,7 @@ MODEL_CONFIG=""
 DEVICE=0
 MODE="scenario"
 SCENARIO="optimized"
+GEMS_MODE="all"
 NSYS_TARGET=""  # cuda, gems, or empty (both)
 
 # 解析参数
@@ -82,6 +85,10 @@ parse_args() {
             --gems)
                 NSYS_TARGET="gems"
                 shift
+                ;;
+            --gems-mode)
+                GEMS_MODE="$2"
+                shift 2
                 ;;
             --all)
                 MODE="all"
@@ -137,7 +144,7 @@ run_scenario() {
 
     if [[ "$SCENARIO" == "shape" ]]; then
         log_step "1/1: GEMS Shape 场景"
-        "${SCRIPT_DIR}/run-workflow.sh" --mode gems --gems-mode all $base_args --scenario shape --gems-once false
+        "${SCRIPT_DIR}/run-workflow.sh" --mode gems --gems-mode "$GEMS_MODE" $base_args --scenario shape --gems-once false
         log_info "Shape 场景完成"
         return 0
     fi
@@ -146,7 +153,7 @@ run_scenario() {
     "${SCRIPT_DIR}/run-workflow.sh" --mode cuda $base_args --scenario "$SCENARIO"
 
     log_step "2/2: GEMS 场景 (${SCENARIO})"
-    "${SCRIPT_DIR}/run-workflow.sh" --mode gems --gems-mode all $base_args --scenario "$SCENARIO"
+    "${SCRIPT_DIR}/run-workflow.sh" --mode gems --gems-mode "$GEMS_MODE" $base_args --scenario "$SCENARIO"
 
     log_info "场景运行完成"
 }
@@ -171,7 +178,7 @@ run_nsys() {
 
     if [[ -z "$NSYS_TARGET" || "$NSYS_TARGET" == "gems" ]]; then
         log_step "GEMS NSYS Profiling (${profile_scenario})"
-        "${SCRIPT_DIR}/run-workflow.sh" --mode gems --gems-mode all $base_args --scenario "$profile_scenario" --nsys
+        "${SCRIPT_DIR}/run-workflow.sh" --mode gems --gems-mode "$GEMS_MODE" $base_args --scenario "$profile_scenario" --nsys
     fi
 
     log_info "NSYS Profiling 模式完成"
@@ -197,7 +204,7 @@ run_torch() {
 
     if [[ -z "$NSYS_TARGET" || "$NSYS_TARGET" == "gems" ]]; then
         log_step "GEMS Torch Profiling (${profile_scenario})"
-        "${SCRIPT_DIR}/run-workflow.sh" --mode gems --gems-mode all $base_args --scenario "$profile_scenario" --torch
+        "${SCRIPT_DIR}/run-workflow.sh" --mode gems --gems-mode "$GEMS_MODE" $base_args --scenario "$profile_scenario" --torch
     fi
 
     log_info "Torch Profiling 模式完成"
@@ -235,6 +242,7 @@ main() {
     log_info "设备: $DEVICE"
     log_info "模式: $MODE"
     log_info "场景: $SCENARIO"
+    log_info "GEMS 模式: $GEMS_MODE"
     if [[ "$MODE" == "nsys" && -n "$NSYS_TARGET" ]]; then
         log_info "NSYS 目标: $NSYS_TARGET"
     fi

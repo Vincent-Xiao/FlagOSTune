@@ -11,6 +11,7 @@ benchmark_runner.py - FlagTune 基准测试执行器
 import subprocess
 import sys
 import time
+import ast
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -197,11 +198,11 @@ def append_shape_scenario_marker(scenario: dict, config: dict) -> None:
     shape_dir = project_root / 'results' / model_name / 'gems-config-shape'
     shape_dir.mkdir(parents=True, exist_ok=True)
 
-    gems_all_file = shape_dir / 'gems-all.txt'
+    gems_file = get_shape_gems_output_file(shape_dir, config)
     marker_file = shape_dir / 'marker.txt'
 
     # 静默窗口检测: gems-all.txt 在一段时间内 size/mtime 均不变化，认为当前写入已稳定
-    if gems_all_file.exists():
+    if gems_file.exists():
         stable_rounds = 10
         stable_interval_sec = 0.2
         timeout_sec = 10.0
@@ -210,7 +211,7 @@ def append_shape_scenario_marker(scenario: dict, config: dict) -> None:
         start_ts = time.time()
 
         while time.time() - start_ts < timeout_sec:
-            st = gems_all_file.stat()
+            st = gems_file.stat()
             cur_sig = (st.st_size, st.st_mtime_ns)
 
             if cur_sig == last_sig:
@@ -223,12 +224,12 @@ def append_shape_scenario_marker(scenario: dict, config: dict) -> None:
 
             time.sleep(stable_interval_sec)
         else:
-            print(f"[WARN] gems-all.txt 静默窗口检测超时，继续按当前内容记录行号: {gems_all_file}")
+            print(f"[WARN] gems 文件静默窗口检测超时，继续按当前内容记录行号: {gems_file}")
 
     # 记录 scenario 开始前 gems-all.txt 的当前行号
     start_line = 0
-    if gems_all_file.exists():
-        with gems_all_file.open('r', encoding='utf-8', errors='ignore') as f:
+    if gems_file.exists():
+        with gems_file.open('r', encoding='utf-8', errors='ignore') as f:
             start_line = sum(1 for _ in f)
 
     marker = f"{model_name}-{scenario_name}：{start_line}\n"
@@ -236,6 +237,24 @@ def append_shape_scenario_marker(scenario: dict, config: dict) -> None:
         f.write(marker)
 
     print(f"[INFO] shape 标记已记录: {marker.strip()} -> {marker_file}")
+
+
+def get_shape_gems_output_file(shape_dir: Path, config: dict) -> Path:
+    """根据 current_run.gems.mode 计算 shape 场景实际写入的 gems 文件路径。"""
+    gems_mode = str(config.get('current_run', {}).get('gems', {}).get('mode', 'all'))
+
+    if gems_mode in {"all", "mm", "NULL"}:
+        filename = f"gems-{gems_mode}.txt"
+        return shape_dir / filename
+
+    try:
+        parsed = ast.literal_eval(gems_mode)
+        keep_ops = parsed if isinstance(parsed, list) else [parsed]
+        filename = f"gems-{keep_ops}.txt"
+    except (ValueError, SyntaxError):
+        filename = f"gems-{gems_mode}.txt"
+
+    return shape_dir / filename
 
 
 def reset_shape_marker_file(config: dict) -> None:

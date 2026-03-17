@@ -8,12 +8,14 @@
 #   ./run-processing.sh --workflow nsys --model qwen-3.5 --skip-export
 #   ./run-processing.sh --workflow torch --model qwen-3.5
 #   ./run-processing.sh --workflow shape
+#   ./run-processing.sh --workflow shape --gems-mode mm
 #   ./run-processing.sh --workflow shape --report
 #   ./run-processing.sh --workflow all --model qwen-3.5
 #
 # 参数:
 #   --workflow bench|nsys|torch|shape|all  工作流选择
 #   --model NAME                     使用 config.yaml.NAME 作为配置文件
+#   --gems-mode MODE                 Shape 工作流使用的 FlagGems 模式 (默认 all)
 #   -f FILENAME                      基准测试模式 (optimized 或空)
 #   --skip-export                    跳过 nsys 导出步骤 (仅 nsys 工作流)
 #   --report                         仅执行报告生成相关逻辑
@@ -56,6 +58,7 @@ FILENAME=""
 SKIP_EXPORT=false
 REPORT=false
 WARMUP=2
+GEMS_MODE="all"
 
 # 解析参数
 parse_args() {
@@ -67,6 +70,10 @@ parse_args() {
                 ;;
             --model)
                 MODEL_CONFIG="$2"
+                shift 2
+                ;;
+            --gems-mode)
+                GEMS_MODE="$2"
                 shift 2
                 ;;
             -f)
@@ -303,17 +310,29 @@ run_shape_workflow() {
     # 从配置获取输入输出路径 (参照 run-workflow.sh 的目录设定)
     local model_name=$(get_config_value "paths.model_name" "default")
     local paths_results=$(get_config_value "paths.results" "results")
+    local input_name="gems-${GEMS_MODE}.txt"
 
     # Shape 分析使用 gems-config-shape 目录 (GEMS_ONCE=false 时生成)
-    local input_file="${paths_results}/${model_name}/gems-config-shape/gems-all.txt"
+    local input_file="${paths_results}/${model_name}/gems-config-shape/${input_name}"
     local marker_file="${paths_results}/${model_name}/gems-config-shape/marker.txt"
     local output_dir="reports/${model_name}/shape"
 
     # 检查输入文件是否存在
     if [[ ! -f "${PROJECT_ROOT}/${input_file}" ]]; then
         log_warn "输入文件不存在: ${input_file}"
-        log_info "尝试使用默认路径: gems-config/gems-all.txt"
-        input_file="gems-config/gems-all.txt"
+        if [[ "$GEMS_MODE" != "all" ]]; then
+            local fallback_input="${paths_results}/${model_name}/gems-config-shape/gems-all.txt"
+            if [[ -f "${PROJECT_ROOT}/${fallback_input}" ]]; then
+                log_info "尝试回退到: ${fallback_input}"
+                input_file="$fallback_input"
+            else
+                log_info "尝试使用默认路径: gems-config/gems-all.txt"
+                input_file="gems-config/gems-all.txt"
+            fi
+        else
+            log_info "尝试使用默认路径: gems-config/gems-all.txt"
+            input_file="gems-config/gems-all.txt"
+        fi
     fi
 
     if [[ ! -f "${PROJECT_ROOT}/${marker_file}" ]]; then
@@ -410,6 +429,7 @@ main() {
 
     log_info "FlagTune 数据处理工作流调度器"
     log_info "工作流: ${WORKFLOW:-未指定}"
+    log_info "Gems Mode: ${GEMS_MODE}"
     if [[ "$REPORT" == true ]]; then
         log_info "模式: 仅生成报告 (--report)"
     fi
