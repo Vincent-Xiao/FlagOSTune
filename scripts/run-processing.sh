@@ -8,6 +8,7 @@
 #   ./run-processing.sh --workflow nsys --model qwen-3.5 --skip-export
 #   ./run-processing.sh --workflow torch --model qwen-3.5
 #   ./run-processing.sh --workflow torch --model qwen-3.5 --mode cuda
+#   ./run-processing.sh --workflow torch --model qwen-3.5 --rank 1
 #   ./run-processing.sh --workflow shape
 #   ./run-processing.sh --workflow shape --gems-mode mm
 #   ./run-processing.sh --workflow shape --report
@@ -17,6 +18,7 @@
 #   --workflow bench|nsys|torch|shape|all  工作流选择
 #   --model NAME                     使用 config.yaml.NAME 作为配置文件
 #   --mode TYPE                      Torch 工作流模式 (cuda|gems|compare，默认 cuda)
+#   --rank VALUE                     Torch 工作流 rank 选择（数字或 all，默认 0）
 #   --gems-mode MODE                 Shape 工作流使用的 FlagGems 模式 (默认 all)
 #   -f FILENAME                      基准测试模式 (optimized 或空)
 #   --skip-export                    跳过 nsys 导出步骤 (仅 nsys 工作流)
@@ -62,6 +64,7 @@ REPORT=false
 WARMUP=2
 GEMS_MODE="all"
 TORCH_MODE="cuda"
+TORCH_RANK="0"
 
 # 解析参数
 parse_args() {
@@ -77,6 +80,10 @@ parse_args() {
                 ;;
             --mode)
                 TORCH_MODE="$2"
+                shift 2
+                ;;
+            --rank)
+                TORCH_RANK="$2"
                 shift 2
                 ;;
             --gems-mode)
@@ -304,10 +311,16 @@ run_torch_workflow() {
             ;;
     esac
 
+    if [[ ! "$TORCH_RANK" =~ ^[0-9]+$ && "$TORCH_RANK" != "all" ]]; then
+        log_error "--rank 仅支持数字或 all；当前值: $TORCH_RANK"
+        exit 1
+    fi
+
     log_info "Torch 模式: $TORCH_MODE"
-    log_info "运行: $python_exe $perf_script --torch_path $torch_output_dir --mode $TORCH_MODE"
+    log_info "Torch Rank: $TORCH_RANK"
+    log_info "运行: $python_exe $perf_script --torch_path $torch_output_dir --mode $TORCH_MODE --rank $TORCH_RANK"
     cd "$PROJECT_ROOT"
-    $python_exe "$perf_script" --torch_path "$torch_output_dir" --mode "$TORCH_MODE"
+    $python_exe "$perf_script" --torch_path "$torch_output_dir" --mode "$TORCH_MODE" --rank "$TORCH_RANK"
 
     log_info "Torch profiler 分析完成"
 }

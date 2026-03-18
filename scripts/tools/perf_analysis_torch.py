@@ -35,11 +35,6 @@ from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
 import yaml
 from openpyxl import Workbook
 
-try:
-    import ijson  # type: ignore
-except ImportError:  # pragma: no cover
-    ijson = None
-
 
 TARGET_SOURCE_PREFIXES = (
     "vllm/model_executor/",
@@ -47,6 +42,7 @@ TARGET_SOURCE_PREFIXES = (
     "vllm/distributed/",
 )
 UNMAPPED_OP_NAME = "unknow"
+ALL_REDUCE_OP_NAME = "_C_custom_ar::all_reduce"
 EVENT_SEPARATOR = b"\n  },\n  {"
 EVENT_START_PREFIX = b"  {"
 PH_X_MARKER = b'"ph": "X"'
@@ -59,11 +55,20 @@ TS_MARKER = b'"ts": '
 DUR_MARKER = b'"dur": '
 EXTERNAL_ID_MARKER = b'"External id": '
 NUMERIC_STOP_BYTES = b",}\r\n] "
+_MMAP_CACHE: Dict[str, Tuple[Any, mmap.mmap]] = {}
+
+
+def normalize_rank_selector(rank_value: str) -> str:
+    value = str(rank_value).strip().lower()
+    if value == "all":
+        return "all"
+    if value.isdigit():
+        return str(int(value))
+    raise argparse.ArgumentTypeError("--rank 仅支持数字或 all")
 
 
 def get_project_root() -> Path:
     return Path(__file__).resolve().parent.parent.parent
-
 
 def load_tool_config() -> Optional[Dict[str, Any]]:
     cfg = get_project_root() / "scripts" / "tools" / "tool_config.yaml"
@@ -142,17 +147,19 @@ def parse_self_cuda_total_us(txt_path: Path) -> float:
     return 0.0
 
 
-def iter_trace_events(trace_path: Path) -> Iterable[Dict[str, Any]]:
-    if ijson is not None:
-        with trace_path.open("rb") as f:
-            yield from ijson.items(
-                f,
-                "traceEvents.item",
-                use_float=True,
-                buf_size=1024 * 1024,
-            )
-        return
+def decode_json_bytes(raw: bytes) -> Any:
+    return json.loads(raw)
 
+
+def decode_json_string_literal(raw: bytes) -> Optional[str]:
+    try:
+        value = decode_json_bytes(raw)
+    except Exception:
+        return None
+    return value if isinstance(value, str) else None
+
+
+def iter_trace_events(trace_path: Path) -> Iterable[Dict[str, Any]]:
     in_trace_events = False
     collecting = False
     braces = 0
@@ -189,8 +196,8 @@ def iter_trace_events(trace_path: Path) -> Iterable[Dict[str, Any]]:
             if not raw:
                 continue
             try:
-                event = json.loads(raw)
-            except json.JSONDecodeError:
+                event = decode_json_bytes(raw.encode("utf-8"))
+            except Exception:
                 continue
             yield event
 
@@ -426,10 +433,7 @@ def extract_json_string_field(raw: bytes, marker: bytes) -> Optional[str]:
             segment = raw[start:end]
             if 92 not in segment:
                 return segment.decode("utf-8", errors="ignore")
-            try:
-                return json.loads(raw[start - 1:end + 1])
-            except json.JSONDecodeError:
-                return None
+            return decode_json_string_literal(raw[start - 1:end + 1])
         end += 1
     return None
 
@@ -474,6 +478,74 @@ def extract_float_field(raw: bytes, marker: bytes) -> Optional[float]:
         return None
 
 
+def parse_int_from_offset(raw: bytes, start: int) -> Optional[int]:
+    raw_len = len(raw)
+    while start < raw_len and raw[start] in b" \t":
+        start += 1
+    if start >= raw_len or raw.startswith(b"null", start):
+        return None
+
+    end = start
+    while end < raw_len and raw[end] not in NUMERIC_STOP_BYTES:
+        end += 1
+    if end <= start:
+        return None
+
+    try:
+        return int(raw[start:end])
+    except ValueError:
+        return None
+
+
+def parse_float_from_offset(raw: bytes, start: int) -> Optional[float]:
+    raw_len = len(raw)
+    while start < raw_len and raw[start] in b" \t":
+        start += 1
+    if start >= raw_len or raw.startswith(b"null", start):
+        return None
+
+    end = start
+    while end < raw_len and raw[end] not in NUMERIC_STOP_BYTES:
+        end += 1
+    if end <= start:
+        return None
+
+    try:
+        return float(raw[start:end])
+    except ValueError:
+        return None
+
+
+def extract_python_source_file_field(raw: bytes) -> Optional[str]:
+    idx = raw.find(NAME_MARKER)
+    if idx < 0:
+        return None
+
+    start = idx + len(NAME_MARKER)
+    end = start
+    raw_len = len(raw)
+    escaped = False
+    colon_pos = -1
+
+    while end < raw_len:
+        current = raw[end]
+        if escaped:
+            escaped = False
+        elif current == 92:  # backslash
+            escaped = True
+        elif current == 58 and colon_pos < 0:  # colon
+            colon_pos = end
+        elif current == 34:  # quote
+            value_end = colon_pos if colon_pos >= 0 else end
+            segment = raw[start:value_end]
+            if 92 not in segment:
+                return segment.decode("utf-8", errors="ignore")
+            full_value = decode_json_string_literal(raw[start - 1:end + 1])
+            return extract_source_file(full_value) if full_value else None
+        end += 1
+    return None
+
+
 def align_to_next_event_start(trace_file: Path, offset: int, limit: int) -> int:
     with trace_file.open("rb") as f:
         f.seek(offset)
@@ -490,29 +562,38 @@ def align_to_next_event_start(trace_file: Path, offset: int, limit: int) -> int:
                 return pos
 
 
+def get_cached_mmap(trace_file: Path) -> mmap.mmap:
+    cache_key = str(trace_file)
+    cached = _MMAP_CACHE.get(cache_key)
+    if cached is not None:
+        _, mm = cached
+        return mm
+
+    file_obj = trace_file.open("rb")
+    mm = mmap.mmap(file_obj.fileno(), 0, access=mmap.ACCESS_READ)
+    _MMAP_CACHE[cache_key] = (file_obj, mm)
+    return mm
+
+
 def iter_event_objects_in_range(
     trace_file: Path,
     start_offset: int,
     end_offset: int,
 ) -> Iterable[bytes]:
-    with trace_file.open("rb") as f:
-        mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
-        try:
-            cursor = start_offset
-            while cursor < end_offset:
-                next_sep = mm.find(EVENT_SEPARATOR, cursor, end_offset)
-                if next_sep < 0:
-                    raw = trim_event_object(mm[cursor:end_offset])
-                    if raw:
-                        yield raw
-                    break
+    mm = get_cached_mmap(trace_file)
+    cursor = start_offset
+    while cursor < end_offset:
+        next_sep = mm.find(EVENT_SEPARATOR, cursor, end_offset)
+        if next_sep < 0:
+            raw = trim_event_object(mm[cursor:end_offset])
+            if raw:
+                yield raw
+            break
 
-                raw = trim_event_object(mm[cursor:next_sep + 4])
-                if raw:
-                    yield raw
-                cursor = next_sep + 6
-        finally:
-            mm.close()
+        raw = trim_event_object(mm[cursor:next_sep + 4])
+        if raw:
+            yield raw
+        cursor = next_sep + 6
 
 
 def find_trace_event_section_offsets(trace_file: Path) -> Optional[Tuple[int, int, int, int]]:
@@ -681,22 +762,32 @@ def parse_python_section_range(
         if PH_X_MARKER not in raw or PYTHON_FUNC_CAT_MARKER not in raw:
             continue
 
-        tid = extract_int_field(raw, TID_MARKER)
-        ts = extract_float_field(raw, TS_MARKER)
-        dur = extract_float_field(raw, DUR_MARKER)
-        if tid is None or ts is None or dur is None:
+        tid_marker_pos = raw.find(TID_MARKER)
+        if tid_marker_pos < 0:
             continue
 
-        if tid not in needed_tids:
+        tid = parse_int_from_offset(raw, tid_marker_pos + len(TID_MARKER))
+        if tid is None or tid not in needed_tids:
             continue
 
-        source_name = extract_json_string_field(raw, NAME_MARKER)
-        if not source_name:
+        ts_marker_pos = raw.find(TS_MARKER, tid_marker_pos)
+        if ts_marker_pos < 0:
+            continue
+        ts = parse_float_from_offset(raw, ts_marker_pos + len(TS_MARKER))
+        if ts is None:
             continue
 
-        source_file = extract_source_file(source_name)
-        if ".py(" not in source_file:
+        dur_marker_pos = raw.find(DUR_MARKER, ts_marker_pos)
+        if dur_marker_pos < 0:
             continue
+        dur = parse_float_from_offset(raw, dur_marker_pos + len(DUR_MARKER))
+        if dur is None:
+            continue
+
+        source_file = extract_python_source_file_field(raw)
+        if not source_file or ".py(" not in source_file:
+            continue
+
         python_frames_by_tid[tid].append((ts, ts + dur, source_file))
 
     return dict(python_frames_by_tid)
@@ -816,10 +907,48 @@ def get_default_workers(num_files: int) -> int:
     return get_cpu_workers() if num_files > 0 else 1
 
 
+def rank_matches_trace_file(trace_file: Path, rank_selector: str) -> bool:
+    if rank_selector == "all":
+        return True
+    return re.search(rf"rank{re.escape(rank_selector)}(?:\D|$)", trace_file.name) is not None
+
+
+def rank_matches_profiler_txt(txt_file: Path, rank_selector: str) -> bool:
+    if rank_selector == "all":
+        return True
+    return re.search(rf"profiler_out_{re.escape(rank_selector)}(?:\D|$)", txt_file.name) is not None
+
+
+def filter_trace_files(trace_files: List[Path], rank_selector: str) -> List[Path]:
+    if rank_selector == "all":
+        return trace_files
+    return [trace_file for trace_file in trace_files if rank_matches_trace_file(trace_file, rank_selector)]
+
+
+def filter_profiler_txt_files(txt_files: List[Path], rank_selector: str) -> List[Path]:
+    if rank_selector == "all":
+        return txt_files
+    return [txt_file for txt_file in txt_files if rank_matches_profiler_txt(txt_file, rank_selector)]
+
+
 def choose_file_parallelism(
     total_workers: int,
     trace_files: List[Path],
 ) -> int:
+    """Choose outer file-level parallelism for rank=all multi-file parsing.
+
+    当前并行策略：
+    - 当 rank != all 时，最终只会解析 1 个 trace json，此函数不会参与分配；
+      所有 CPU 核数都直接分配给该单文件内部切块并行解析。
+    - 当 rank == all 时，采用“两级并行”：
+      1) 外层：多个 trace json 并行解析
+      2) 内层：每个单文件内部再做多进程切块解析
+      并尽量满足：
+          多文件并行数 × 单文件并行数 ≈ CPU 总核数
+    - 对超大文件（平均 >= 2 GiB）优先保证单文件并行度足够高，
+      当前目标是单文件至少约 32 个 worker，以减少大文件场景下
+      过多并发读盘带来的 I/O 争用。
+    """
     file_count = len(trace_files)
     if total_workers <= 1 or file_count <= 1:
         return 1
@@ -847,15 +976,34 @@ def parse_trace_file_with_workers(
     return parse_trace_file_aggregates_parallel(trace_file, workers)
 
 
-def parse_profile_dir(report_dir: Path, workers: int = 1) -> Tuple[List[KernelStat], float]:
-    trace_files = sorted(report_dir.glob("*.pt.trace.json"))
+def parse_profile_dir(
+    report_dir: Path,
+    workers: int = 1,
+    rank_selector: str = "0",
+) -> Tuple[List[KernelStat], float]:
+    """Parse one profiler report directory.
+
+    并行策略说明：
+    - rank != all:
+      过滤后只保留单个 rank 对应的 1 个 trace json；
+      若 workers > 1，则把全部 workers 都用于这个单文件的切块并行解析。
+      也就是“单文件独占全部 CPU 核数”。
+    - rank == all:
+      解析目录下全部 trace json；
+      若文件数 > 1，则采用“两级并行”：
+        * 外层：按文件并行（file_parallelism）
+        * 内层：每个文件内部切块并行（per_file_workers）
+      且尽量满足：
+          file_parallelism × per_file_workers ≈ CPU 总核数
+    """
+    trace_files = filter_trace_files(sorted(report_dir.glob("*.pt.trace.json")), rank_selector)
     if not trace_files:
-        raise SystemExit(f"Missing trace file in {report_dir}")
+        raise SystemExit(f"Missing trace file in {report_dir} for rank={rank_selector}")
     file_count = len(trace_files)
     workers = max(1, min(workers, get_cpu_workers()))
 
     txt_total_us = 0.0
-    for txt in sorted(report_dir.glob("profiler_out_*.txt")):
+    for txt in filter_profiler_txt_files(sorted(report_dir.glob("profiler_out_*.txt")), rank_selector):
         txt_total_us += parse_self_cuda_total_us(txt)
 
     kernel_agg: Dict[Tuple[str, str, str], List[float]] = defaultdict(lambda: [0.0, 0.0])
@@ -898,16 +1046,34 @@ def parse_profile_dirs_in_parallel(
     cuda_dir: Path,
     gems_dir: Path,
     workers: int,
+    rank_selector: str,
 ) -> Tuple[Tuple[List[KernelStat], float], Tuple[List[KernelStat], float]]:
-    cuda_trace_count = len(list(cuda_dir.glob("*.pt.trace.json")))
-    gems_trace_count = len(list(gems_dir.glob("*.pt.trace.json")))
+    """Parse CUDA/GEMS directories for compare mode.
+
+    compare 模式下的额外策略：
+    - rank != all:
+      两侧通常都会各自过滤成单个 json。为了保证“单文件独占全部 CPU 核数”，
+      这里不再并行跑 cuda_dir 和 gems_dir，而是顺序执行：
+        先解析一侧（单文件吃满全部核数），再解析另一侧。
+    - rank == all:
+      可以目录级并行跑 CUDA/GEMS 两侧，但会对每侧的 worker 进行拆分，
+      避免总并发超过 CPU 总核数太多。
+    """
+    if rank_selector != "all":
+        return (
+            parse_profile_dir(cuda_dir, workers, rank_selector),
+            parse_profile_dir(gems_dir, workers, rank_selector),
+        )
+
+    cuda_trace_count = len(filter_trace_files(sorted(cuda_dir.glob("*.pt.trace.json")), rank_selector))
+    gems_trace_count = len(filter_trace_files(sorted(gems_dir.glob("*.pt.trace.json")), rank_selector))
     per_dir_workers = workers
     if cuda_trace_count == 1 and gems_trace_count == 1 and workers > 1:
         per_dir_workers = max(1, workers // 2)
 
     with ProcessPoolExecutor(max_workers=2) as executor:
-        future_cuda = executor.submit(parse_profile_dir, cuda_dir, per_dir_workers)
-        future_gems = executor.submit(parse_profile_dir, gems_dir, per_dir_workers)
+        future_cuda = executor.submit(parse_profile_dir, cuda_dir, per_dir_workers, rank_selector)
+        future_gems = executor.submit(parse_profile_dir, gems_dir, per_dir_workers, rank_selector)
         return future_cuda.result(), future_gems.result()
 
 
@@ -939,6 +1105,11 @@ def md_table(headers: List[str], rows: List[List[str]]) -> str:
     out = ["| " + " | ".join(headers) + " |", "|" + "|".join(["---"] * len(headers)) + "|"]
     out.extend("| " + " | ".join(r) + " |" for r in rows)
     return "\n".join(out)
+
+
+def adjusted_total_ref_us(total_ref_us: float, all_reduce_total_us: float) -> float:
+    adjusted = total_ref_us - all_reduce_total_us
+    return adjusted if adjusted > 0 else total_ref_us
 
 
 def aggregate_by_op(stats: List[KernelStat]) -> List[OpAggStat]:
@@ -988,6 +1159,10 @@ def build_compare_rows(
     gems_agg = aggregate_by_op(gems_stats)
     cuda_map = {x.op_name: x for x in cuda_agg}
     gems_map = {x.op_name: x for x in gems_agg}
+    cuda_all_reduce_us = cuda_map.get(ALL_REDUCE_OP_NAME).total_us if ALL_REDUCE_OP_NAME in cuda_map else 0.0
+    gems_all_reduce_us = gems_map.get(ALL_REDUCE_OP_NAME).total_us if ALL_REDUCE_OP_NAME in gems_map else 0.0
+    cuda_non_all_reduce_ref_us = adjusted_total_ref_us(cuda_total_ref_us, cuda_all_reduce_us)
+    gems_non_all_reduce_ref_us = adjusted_total_ref_us(gems_total_ref_us, gems_all_reduce_us)
 
     all_ops = set(cuda_map) | set(gems_map)
 
@@ -1017,8 +1192,14 @@ def build_compare_rows(
 
         c_total = c.total_us if c else 0.0
         g_total = g.total_us if g else 0.0
-        c_pct = c_total / cuda_total_ref_us if cuda_total_ref_us > 0 else 0.0
-        g_pct = g_total / gems_total_ref_us if gems_total_ref_us > 0 else 0.0
+        if op == ALL_REDUCE_OP_NAME:
+            c_denom = cuda_total_ref_us
+            g_denom = gems_total_ref_us
+        else:
+            c_denom = cuda_non_all_reduce_ref_us
+            g_denom = gems_non_all_reduce_ref_us
+        c_pct = c_total / c_denom if c_denom > 0 else 0.0
+        g_pct = g_total / g_denom if g_denom > 0 else 0.0
 
         kernel_names: Set[str] = set()
         if c:
@@ -1091,13 +1272,22 @@ def parse_args() -> argparse.Namespace:
         default="cuda",
         help="报告模式：cuda（仅 CUDA）、gems（仅 FlagGems）、compare（CUDA 与 FlagGems 对比）",
     )
+    parser.add_argument(
+        "--rank",
+        type=normalize_rank_selector,
+        default="0",
+        help="指定解析的 rank，数字表示仅解析对应 rank 的 json/txt，all 表示解析全部；默认 0",
+    )
     return parser.parse_args()
 
 
 def build_mode_rows(stats: List[OpAggStat], total_ref_us: float) -> List[List[str]]:
     rows: List[List[str]] = []
+    all_reduce_total_us = sum(row.total_us for row in stats if row.op_name == ALL_REDUCE_OP_NAME)
+    non_all_reduce_ref_us = adjusted_total_ref_us(total_ref_us, all_reduce_total_us)
     for row in stats:
         avg_us = row.total_us / row.calls if row.calls > 0 else 0.0
+        pct_denom = total_ref_us if row.op_name == ALL_REDUCE_OP_NAME else non_all_reduce_ref_us
         rows.append([
             row.source_file,
             row.op_name,
@@ -1105,7 +1295,7 @@ def build_mode_rows(stats: List[OpAggStat], total_ref_us: float) -> List[List[st
             str(row.calls),
             fmt_ms(row.total_us),
             fmt_us(avg_us),
-            fmt_pct(row.total_us / total_ref_us if total_ref_us > 0 else 0.0),
+            fmt_pct(row.total_us / pct_denom if pct_denom > 0 else 0.0),
         ])
     return rows
 
@@ -1131,9 +1321,9 @@ def main() -> None:
 
     trace_file_count = 0
     if args.mode in ("cuda", "compare"):
-        trace_file_count += len(list(cuda_dir.glob("*.pt.trace.json")))
+        trace_file_count += len(filter_trace_files(sorted(cuda_dir.glob("*.pt.trace.json")), args.rank))
     if args.mode in ("gems", "compare"):
-        trace_file_count += len(list(gems_dir.glob("*.pt.trace.json")))
+        trace_file_count += len(filter_trace_files(sorted(gems_dir.glob("*.pt.trace.json")), args.rank))
     workers = args.workers if args.workers is not None else get_default_workers(trace_file_count)
 
     cuda_stats: List[KernelStat] = []
@@ -1146,18 +1336,24 @@ def main() -> None:
     if args.mode == "compare":
         (cuda_stats, cuda_total_ref_us), (gems_stats,
                                           gems_total_ref_us) = parse_profile_dirs_in_parallel(
-                                              cuda_dir, gems_dir, workers=workers)
+                                              cuda_dir, gems_dir, workers=workers, rank_selector=args.rank)
         cuda_agg = aggregate_by_op(cuda_stats)
         gems_agg = aggregate_by_op(gems_stats)
     elif args.mode == "cuda":
-        cuda_stats, cuda_total_ref_us = parse_profile_dir(cuda_dir, workers=workers)
+        cuda_stats, cuda_total_ref_us = parse_profile_dir(
+            cuda_dir, workers=workers, rank_selector=args.rank)
         cuda_agg = aggregate_by_op(cuda_stats)
     elif args.mode == "gems":
-        gems_stats, gems_total_ref_us = parse_profile_dir(gems_dir, workers=workers)
+        gems_stats, gems_total_ref_us = parse_profile_dir(
+            gems_dir, workers=workers, rank_selector=args.rank)
         gems_agg = aggregate_by_op(gems_stats)
 
     report: List[str] = []
     excel_tables: List[Dict[str, Any]] = []
+
+    report.append(f"1. 占比说明：{ALL_REDUCE_OP_NAME} 使用全部 kernel 总时间作为分母；其它算子使用排除 all_reduce 后的剩余 kernel 总时间作为分母")
+    report.append(f"2. 基于 torch profiler rank {args.rank} json文件生成")
+    report.append("")
 
     cuda_headers = ["source file", "op_name", "kernel_name", "调用次数", "总时间(ms)", "平均时间(us)", "占比"]
     gems_headers = ["source file", "op_name", "kernel_name", "调用次数", "总时间(ms)", "平均时间(us)", "占比"]

@@ -17,6 +17,7 @@
 #   --model NAME          使用 config.yaml.NAME 作为配置文件
 #   --workflow TYPE       工作流类型 (bench|nsys|torch|shape|all，默认 bench)
 #   --mode TYPE           Torch 工作流模式 (cuda|gems|compare，默认 cuda)
+#   --rank VALUE          Torch 工作流 rank 选择（数字或 all，默认 0）
 #   --gems-mode MODE      Shape 工作流使用的 FlagGems 模式 (默认 all)
 #   --warmup N            跳过预热轮数 (默认 2，bench/optimized 生效)
 #   --skip-export         与 --workflow nsys 配合使用，跳过 nsys 导出步骤
@@ -51,6 +52,7 @@ REPORT=false
 WARMUP=2
 GEMS_MODE="all"
 TORCH_MODE="cuda"
+TORCH_RANK="0"
 
 # 解析参数
 parse_args() {
@@ -66,6 +68,10 @@ parse_args() {
                 ;;
             --mode)
                 TORCH_MODE="$2"
+                shift 2
+                ;;
+            --rank)
+                TORCH_RANK="$2"
                 shift 2
                 ;;
             --gems-mode)
@@ -120,6 +126,11 @@ validate_args() {
             exit 1
             ;;
     esac
+
+    if [[ ! "$TORCH_RANK" =~ ^[0-9]+$ && "$TORCH_RANK" != "all" ]]; then
+        log_error "--rank 仅支持数字或 all；当前值: $TORCH_RANK"
+        exit 1
+    fi
 }
 
 # 构建基础参数
@@ -132,6 +143,7 @@ build_base_args() {
     fi
     args+=("--gems-mode" "$GEMS_MODE")
     args+=("--mode" "$TORCH_MODE")
+    args+=("--rank" "$TORCH_RANK")
     echo "${args[@]}"
 }
 
@@ -226,6 +238,7 @@ main() {
     log_info "模型: $MODEL_CONFIG"
     log_info "工作流: $WORKFLOW"
     log_info "Torch Mode: $TORCH_MODE"
+    log_info "Torch Rank: $TORCH_RANK"
     log_info "Gems Mode: $GEMS_MODE"
     log_info "Warmup: $WARMUP"
     if [[ "$REPORT" == true ]]; then
