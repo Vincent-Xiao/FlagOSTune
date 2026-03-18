@@ -6,21 +6,22 @@
 #   ./auto-workflow.sh --model qwen-3.5
 #   ./auto-workflow.sh --model qwen-3.5 --scenario optimized
 #   ./auto-workflow.sh --model qwen-3.5 --scenario full
+#   ./auto-workflow.sh --model qwen-3.5 --mode cuda --scenario optimized
+#   ./auto-workflow.sh --model qwen-3.5 --mode gems --scenario optimized
 #   ./auto-workflow.sh --model qwen-3.5 --scenario shape
 #   ./auto-workflow.sh --model qwen-3.5 --nsys
-#   ./auto-workflow.sh --model qwen-3.5 --nsys --cuda
-#   ./auto-workflow.sh --model qwen-3.5 --nsys --gems
+#   ./auto-workflow.sh --model qwen-3.5 --mode cuda --nsys
+#   ./auto-workflow.sh --model qwen-3.5 --mode gems --nsys
 #   ./auto-workflow.sh --model qwen-3.5 --torch
 #   ./auto-workflow.sh --model qwen-3.5 --scenario shape --gems-mode mm
 #   ./auto-workflow.sh --model qwen-3.5 --all
 #
 # 参数:
 #   --model NAME          使用 config.yaml.NAME 作为配置文件
+#   --mode TYPE           运行目标 (cuda|gems|all，默认 all)
 #   --scenario TYPE       场景类型 (optimized|full|shape，默认 optimized)
 #   --nsys                运行 nsys profiling 模式 (cuda + gems)
 #   --torch               运行 torch profiling 模式 (cuda + gems)
-#   --cuda                与 --nsys/--torch 配合使用，仅运行 CUDA profiling
-#   --gems                与 --nsys/--torch 配合使用，仅运行 GEMS profiling
 #   --gems-mode MODE      FlagGems 模式 (默认 all)
 #   --all                 依次运行 shape → optimized → nsys
 #   --device N            GPU 设备 ID (默认 0)
@@ -49,10 +50,10 @@ log_section() { echo -e "\n${CYAN}========================================${NC}"
 # 默认参数
 MODEL_CONFIG=""
 DEVICE=0
-MODE="scenario"
+WORKFLOW_MODE="scenario"
+TARGET_MODE="all"
 SCENARIO="optimized"
 GEMS_MODE="all"
-NSYS_TARGET=""  # cuda, gems, or empty (both)
 
 # 解析参数
 parse_args() {
@@ -66,24 +67,20 @@ parse_args() {
                 DEVICE="$2"
                 shift 2
                 ;;
+            --mode)
+                TARGET_MODE="$2"
+                shift 2
+                ;;
             --scenario|--scnario)
                 SCENARIO="$2"
                 shift 2
                 ;;
             --nsys)
-                MODE="nsys"
+                WORKFLOW_MODE="nsys"
                 shift
                 ;;
             --torch)
-                MODE="torch"
-                shift
-                ;;
-            --cuda)
-                NSYS_TARGET="cuda"
-                shift
-                ;;
-            --gems)
-                NSYS_TARGET="gems"
+                WORKFLOW_MODE="torch"
                 shift
                 ;;
             --gems-mode)
@@ -91,11 +88,11 @@ parse_args() {
                 shift 2
                 ;;
             --all)
-                MODE="all"
+                WORKFLOW_MODE="all"
                 shift
                 ;;
             -h|--help)
-                head -28 "$0" | tail -26
+                head -31 "$0" | tail -29
                 exit 0
                 ;;
             *)
@@ -121,6 +118,15 @@ validate_args() {
             exit 1
             ;;
     esac
+
+    case "$TARGET_MODE" in
+        cuda|gems|all)
+            ;;
+        *)
+            log_error "--mode 仅支持: cuda, gems, all；当前值: $TARGET_MODE"
+            exit 1
+            ;;
+    esac
 }
 
 # 构建 run-workflow 命令的基础参数
@@ -131,6 +137,59 @@ build_base_args() {
     echo "${args[@]}"
 }
 
+run_by_target_mode() {
+    local scenario="$1"
+    local extra_flag="${2:-}"
+    local base_args
+    base_args=$(build_base_args)
+
+    case "$TARGET_MODE" in
+        cuda)
+            if [[ "$scenario" == "shape" ]]; then
+                log_error "--mode cuda 不支持 shape 场景；请使用 --mode gems 或 --mode all"
+                exit 1
+            fi
+            log_step "CUDA ${extra_flag#-- } ${scenario}"
+            "${SCRIPT_DIR}/run-workflow.sh" --mode cuda $base_args --scenario "$scenario" ${extra_flag:+$extra_flag}
+            ;;
+        gems)
+            if [[ -n "$extra_flag" ]]; then
+                log_step "GEMS ${extra_flag#-- } ${scenario}"
+            elif [[ "$scenario" == "shape" ]]; then
+                log_step "GEMS Shape 场景"
+            else
+                log_step "GEMS 场景 (${scenario})"
+            fi
+            if [[ "$scenario" == "shape" ]]; then
+                "${SCRIPT_DIR}/run-workflow.sh" --mode gems --gems-mode "$GEMS_MODE" $base_args --scenario shape --gems-once false ${extra_flag:+$extra_flag}
+            else
+                "${SCRIPT_DIR}/run-workflow.sh" --mode gems --gems-mode "$GEMS_MODE" $base_args --scenario "$scenario" ${extra_flag:+$extra_flag}
+            fi
+            ;;
+        all)
+            if [[ "$scenario" == "shape" ]]; then
+                log_info "shape 场景仅运行 GEMS"
+                log_step "GEMS Shape 场景"
+                "${SCRIPT_DIR}/run-workflow.sh" --mode gems --gems-mode "$GEMS_MODE" $base_args --scenario shape --gems-once false ${extra_flag:+$extra_flag}
+            else
+                if [[ -n "$extra_flag" ]]; then
+                    log_step "CUDA ${extra_flag#-- } ${scenario}"
+                else
+                    log_step "CUDA 场景 (${scenario})"
+                fi
+                "${SCRIPT_DIR}/run-workflow.sh" --mode cuda $base_args --scenario "$scenario" ${extra_flag:+$extra_flag}
+
+                if [[ -n "$extra_flag" ]]; then
+                    log_step "GEMS ${extra_flag#-- } ${scenario}"
+                else
+                    log_step "GEMS 场景 (${scenario})"
+                fi
+                "${SCRIPT_DIR}/run-workflow.sh" --mode gems --gems-mode "$GEMS_MODE" $base_args --scenario "$scenario" ${extra_flag:+$extra_flag}
+            fi
+            ;;
+    esac
+}
+
 # 运行指定场景
 run_scenario() {
     if [[ "$SCENARIO" == "shape" ]]; then
@@ -139,22 +198,7 @@ run_scenario() {
         log_section "运行 ${SCENARIO} 场景"
     fi
 
-    local base_args
-    base_args=$(build_base_args)
-
-    if [[ "$SCENARIO" == "shape" ]]; then
-        log_step "1/1: GEMS Shape 场景"
-        "${SCRIPT_DIR}/run-workflow.sh" --mode gems --gems-mode "$GEMS_MODE" $base_args --scenario shape --gems-once false
-        log_info "Shape 场景完成"
-        return 0
-    fi
-
-    log_step "1/2: CUDA 场景 (${SCENARIO})"
-    "${SCRIPT_DIR}/run-workflow.sh" --mode cuda $base_args --scenario "$SCENARIO"
-
-    log_step "2/2: GEMS 场景 (${SCENARIO})"
-    "${SCRIPT_DIR}/run-workflow.sh" --mode gems --gems-mode "$GEMS_MODE" $base_args --scenario "$SCENARIO"
-
+    run_by_target_mode "$SCENARIO"
     log_info "场景运行完成"
 }
 
@@ -167,20 +211,7 @@ run_nsys() {
         log_warn "--nsys 模式固定使用 optimized 场景，忽略 --scenario=$SCENARIO"
     fi
 
-    local base_args
-    base_args=$(build_base_args)
-
-    # 根据 NSYS_TARGET 决定运行哪些
-    if [[ -z "$NSYS_TARGET" || "$NSYS_TARGET" == "cuda" ]]; then
-        log_step "CUDA NSYS Profiling (${profile_scenario})"
-        "${SCRIPT_DIR}/run-workflow.sh" --mode cuda $base_args --scenario "$profile_scenario" --nsys
-    fi
-
-    if [[ -z "$NSYS_TARGET" || "$NSYS_TARGET" == "gems" ]]; then
-        log_step "GEMS NSYS Profiling (${profile_scenario})"
-        "${SCRIPT_DIR}/run-workflow.sh" --mode gems --gems-mode "$GEMS_MODE" $base_args --scenario "$profile_scenario" --nsys
-    fi
-
+    run_by_target_mode "$profile_scenario" "--nsys"
     log_info "NSYS Profiling 模式完成"
 }
 
@@ -193,20 +224,7 @@ run_torch() {
         log_warn "--torch 模式固定使用 optimized 场景，忽略 --scenario=$SCENARIO"
     fi
 
-    local base_args
-    base_args=$(build_base_args)
-
-    # 复用 --cuda/--gems 目标筛选
-    if [[ -z "$NSYS_TARGET" || "$NSYS_TARGET" == "cuda" ]]; then
-        log_step "CUDA Torch Profiling (${profile_scenario})"
-        "${SCRIPT_DIR}/run-workflow.sh" --mode cuda $base_args --scenario "$profile_scenario" --torch
-    fi
-
-    if [[ -z "$NSYS_TARGET" || "$NSYS_TARGET" == "gems" ]]; then
-        log_step "GEMS Torch Profiling (${profile_scenario})"
-        "${SCRIPT_DIR}/run-workflow.sh" --mode gems --gems-mode "$GEMS_MODE" $base_args --scenario "$profile_scenario" --torch
-    fi
-
+    run_by_target_mode "$profile_scenario" "--torch"
     log_info "Torch Profiling 模式完成"
 }
 
@@ -240,19 +258,14 @@ main() {
     log_info "FlagTune 一键基准测试"
     log_info "模型: $MODEL_CONFIG"
     log_info "设备: $DEVICE"
-    log_info "模式: $MODE"
+    log_info "工作流: $WORKFLOW_MODE"
+    log_info "运行目标: $TARGET_MODE"
     log_info "场景: $SCENARIO"
     log_info "GEMS 模式: $GEMS_MODE"
-    if [[ "$MODE" == "nsys" && -n "$NSYS_TARGET" ]]; then
-        log_info "NSYS 目标: $NSYS_TARGET"
-    fi
-    if [[ "$MODE" == "torch" && -n "$NSYS_TARGET" ]]; then
-        log_info "Torch 目标: $NSYS_TARGET"
-    fi
 
     cd "$PROJECT_ROOT"
 
-    case "$MODE" in
+    case "$WORKFLOW_MODE" in
         scenario)
             run_scenario
             ;;
