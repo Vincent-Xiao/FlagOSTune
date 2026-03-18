@@ -17,7 +17,7 @@
 # 参数:
 #   --workflow bench|nsys|torch|shape|all  工作流选择
 #   --model NAME                     使用 config.yaml.NAME 作为配置文件
-#   --mode TYPE                      Torch 工作流模式 (cuda|gems|compare，默认 cuda)
+#   --mode TYPE                      Torch 工作流模式 (cuda|gems|compare，默认 compare)
 #   --rank VALUE                     Torch 工作流 rank 选择（数字或 all，默认 0）
 #   --gems-mode MODE                 Shape 工作流使用的 FlagGems 模式 (默认 all)
 #   -f FILENAME                      基准测试模式 (optimized 或空)
@@ -63,7 +63,7 @@ SKIP_EXPORT=false
 REPORT=false
 WARMUP=2
 GEMS_MODE="all"
-TORCH_MODE="cuda"
+TORCH_MODE="compare"
 TORCH_RANK="0"
 
 # 解析参数

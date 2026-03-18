@@ -41,6 +41,9 @@ TARGET_SOURCE_PREFIXES = (
     "vllm/v1/attention/backends/",
     "vllm/distributed/",
 )
+EXCLUDED_SOURCE_PREFIXES = (
+    "vllm/model_executor/models/",
+)
 UNMAPPED_OP_NAME = "unknow"
 ALL_REDUCE_OP_NAME = "_C_custom_ar::all_reduce"
 EVENT_SEPARATOR = b"\n  },\n  {"
@@ -214,11 +217,17 @@ def source_path(source_file: str) -> str:
     return source_file.split("(", 1)[0].strip()
 
 
+def is_excluded_source_file(source_file: str) -> bool:
+    return source_path(source_file).startswith(EXCLUDED_SOURCE_PREFIXES)
+
+
 def source_rank(source_file: str, op_name: str) -> Tuple[int, int, int, str]:
     if is_aten_op(op_name):
         return (0, 0, 0, "")
     if not source_file:
         return (5, 0, 0, "")
+    if is_excluded_source_file(source_file):
+        return (7, 0, 0, source_file)
 
     path = source_path(source_file)
     if path.startswith(TARGET_SOURCE_PREFIXES):
@@ -235,7 +244,9 @@ def source_rank(source_file: str, op_name: str) -> Tuple[int, int, int, str]:
 
 
 def pick_best_source_file(source_files: Iterable[str], op_name: str) -> str:
-    items = [src for src in source_files if src]
+    items = [src for src in source_files if src and not is_excluded_source_file(src)]
+    if not items:
+        items = [src for src in source_files if src]
     if not items:
         return ""
     return min(items, key=lambda src: source_rank(src, op_name))
@@ -245,7 +256,9 @@ def pick_preferred_source_file(frame_sources: List[str], op_name: str) -> str:
     if is_aten_op(op_name):
         return ""
 
-    py_frames = [src for src in frame_sources if ".py(" in src]
+    py_frames = [src for src in frame_sources if ".py(" in src and not is_excluded_source_file(src)]
+    if not py_frames:
+        py_frames = [src for src in frame_sources if ".py(" in src]
     if not py_frames:
         return ""
 
@@ -277,8 +290,12 @@ def pick_preferred_source_file_from_active_frames(
 
     py_frames: List[str] = []
     for _, src in active_frames:
-        if ".py(" in src:
+        if ".py(" in src and not is_excluded_source_file(src):
             py_frames.append(src)
+    if not py_frames:
+        for _, src in active_frames:
+            if ".py(" in src:
+                py_frames.append(src)
     if not py_frames:
         return ""
 
@@ -984,6 +1001,10 @@ def parse_profile_dir(
     """Parse one profiler report directory.
 
     并行策略说明：
+    - mode == cuda / mode == gems:
+      这里使用同一套并行策略，只是输入目录不同：
+        * cuda 读取 report-cuda
+        * gems 读取 report-gems-all
     - rank != all:
       过滤后只保留单个 rank 对应的 1 个 trace json；
       若 workers > 1，则把全部 workers 都用于这个单文件的切块并行解析。
@@ -1058,6 +1079,9 @@ def parse_profile_dirs_in_parallel(
     - rank == all:
       可以目录级并行跑 CUDA/GEMS 两侧，但会对每侧的 worker 进行拆分，
       避免总并发超过 CPU 总核数太多。
+    - 因此：
+        * mode == compare 且 rank != all：单文件满核，双侧顺序
+        * mode == compare 且 rank == all：双侧可并行，但总核数受控
     """
     if rank_selector != "all":
         return (
@@ -1269,8 +1293,8 @@ def parse_args() -> argparse.Namespace:
         "--mode",
         type=str,
         choices=("cuda", "gems", "compare"),
-        default="cuda",
-        help="报告模式：cuda（仅 CUDA）、gems（仅 FlagGems）、compare（CUDA 与 FlagGems 对比）",
+        default="compare",
+        help="报告模式：cuda（仅 CUDA）、gems（仅 FlagGems）、compare（CUDA 与 FlagGems 对比，默认）",
     )
     parser.add_argument(
         "--rank",

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""汇总各模型 perf_analysis_torch.md 的 TOP CUDA/FlagGems Kernel 占比表。"""
+"""汇总各模型 perf_analysis_torch.md 的 CUDA/FlagGems Kernel 占比表。"""
 
 from __future__ import annotations
 
@@ -60,7 +60,7 @@ def split_markdown_row(line: str) -> List[str]:
     return parts
 
 
-def find_table_rows(md_text: str, section_titles: Sequence[str]) -> List[List[str]]:
+def find_table_rows(md_text: str, section_titles: Sequence[str]) -> Tuple[List[str], List[List[str]]]:
     lines = md_text.splitlines()
 
     section_start = -1
@@ -70,19 +70,21 @@ def find_table_rows(md_text: str, section_titles: Sequence[str]) -> List[List[st
             break
 
     if section_start < 0:
-        return []
+        return [], []
 
     header_idx = -1
+    header_cells: List[str] = []
     for idx in range(section_start + 1, len(lines)):
         stripped = lines[idx].strip()
-        if stripped.startswith("| 框架算子名 |"):
+        if stripped.startswith("|"):
             header_idx = idx
+            header_cells = split_markdown_row(stripped)
             break
         if stripped.startswith("## "):
-            return []
+            return [], []
 
     if header_idx < 0:
-        return []
+        return [], []
 
     table_rows: List[List[str]] = []
     for idx in range(header_idx + 2, len(lines)):
@@ -90,21 +92,38 @@ def find_table_rows(md_text: str, section_titles: Sequence[str]) -> List[List[st
         if not line or line.startswith("## ") or not line.startswith("|"):
             break
         cells = split_markdown_row(line)
-        if len(cells) < 6:
+        if len(cells) < len(header_cells):
             continue
         table_rows.append(cells)
 
-    return table_rows
+    return header_cells, table_rows
 
 
 def parse_model_section_pct(report_path: Path, section_titles: Sequence[str], threshold: float) -> Dict[str, float]:
     content = report_path.read_text(encoding="utf-8")
-    rows = find_table_rows(content, section_titles)
+    headers, rows = find_table_rows(content, section_titles)
+    if not headers or not rows:
+        return {}
+
+    normalized_headers = [header.strip().lower() for header in headers]
+
+    def find_column(candidates: Sequence[str]) -> int:
+        for candidate in candidates:
+            if candidate in normalized_headers:
+                return normalized_headers.index(candidate)
+        return -1
+
+    op_idx = find_column(("op_name", "框架算子名"))
+    pct_idx = find_column(("占比",))
+    if op_idx < 0 or pct_idx < 0:
+        return {}
 
     op_to_pct: Dict[str, float] = {}
     for row in rows:
-        framework_op = row[0]
-        pct_text = row[5]
+        if len(row) <= max(op_idx, pct_idx):
+            continue
+        framework_op = row[op_idx]
+        pct_text = row[pct_idx]
         try:
             pct = parse_percent(pct_text)
         except ValueError:
@@ -148,7 +167,7 @@ def build_table_header_rows(model_to_data: Dict[str, Dict[str, float]]) -> Tuple
 
     ordered_ops = sorted(op_set, key=lambda op: (op_avg_score[op], op), reverse=True)
 
-    header = ["序号", "框架算子名"] + models + ["占比平均值"]
+    header = ["序号", "op_name"] + models + ["占比平均值"]
     rows: List[List[str]] = []
     for idx, op in enumerate(ordered_ops, start=1):
         row = [str(idx), op]
