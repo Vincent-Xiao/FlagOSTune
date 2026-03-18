@@ -12,6 +12,7 @@ import subprocess
 import sys
 import time
 import ast
+import json
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -78,6 +79,8 @@ def build_benchmark_command(scenario: dict, config: dict, is_last_run: bool = Fa
     model_name = config.get('model', {}).get('name', 'model')
     tokenizer_path = config.get('model', {}).get('tokenizer_path') or model_path
     tensor_parallel_size = config.get('model', {}).get('tensor_parallel_size', 8)
+    max_num_batched_tokens = config['serve']['max_num_batched_tokens']
+    max_num_seqs = config['serve']['max_num_seqs']
 
     input_len = scenario.get('input_len', 1024)
     output_len = scenario.get('output_len', 1024)
@@ -112,12 +115,26 @@ def build_benchmark_command(scenario: dict, config: dict, is_last_run: bool = Fa
             str(output_len),
             '--num-prompts',
             str(concurrency),
+            '--max-num-batched-tokens',
+            str(max_num_batched_tokens),
+            '--max-num-seqs',
+            str(max_num_seqs),
+            '--enforce-eager',
         ]
         if is_last_run:
+            profiler_config = {
+                "profiler": "torch",
+                "torch_profiler_dir": str(torch_report_dir),
+                "torch_profiler_with_stack": True,
+                "torch_profiler_use_gzip": False,
+                "torch_profiler_dump_cuda_time_total": True,
+                "torch_profiler_record_shapes": False,
+                "torch_profiler_with_memory": False,
+            }
             cmd += [
                 "--profile",
                 "--profiler-config",
-                f'{{"profiler": "torch","torch_profiler_dir":"{torch_report_dir}", "torch_profiler_with_stack": true, "torch_profiler_with_flops": true, "torch_profiler_use_gzip": false, "torch_profiler_dump_cuda_time_total": true, "torch_profiler_record_shapes": true, "torch_profiler_with_memory": false, "ignore_frontend": true, "delay_iterations": 2, "max_iterations": 0}}',
+                json.dumps(profiler_config),
             ]
     else:
         # 普通模式使用 serve 模式

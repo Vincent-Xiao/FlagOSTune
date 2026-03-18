@@ -7,6 +7,7 @@
 #   ./run-processing.sh --workflow nsys --model qwen-3.5
 #   ./run-processing.sh --workflow nsys --model qwen-3.5 --skip-export
 #   ./run-processing.sh --workflow torch --model qwen-3.5
+#   ./run-processing.sh --workflow torch --model qwen-3.5 --mode cuda
 #   ./run-processing.sh --workflow shape
 #   ./run-processing.sh --workflow shape --gems-mode mm
 #   ./run-processing.sh --workflow shape --report
@@ -15,6 +16,7 @@
 # 参数:
 #   --workflow bench|nsys|torch|shape|all  工作流选择
 #   --model NAME                     使用 config.yaml.NAME 作为配置文件
+#   --mode TYPE                      Torch 工作流模式 (cuda|gems|compare，默认 cuda)
 #   --gems-mode MODE                 Shape 工作流使用的 FlagGems 模式 (默认 all)
 #   -f FILENAME                      基准测试模式 (optimized 或空)
 #   --skip-export                    跳过 nsys 导出步骤 (仅 nsys 工作流)
@@ -59,6 +61,7 @@ SKIP_EXPORT=false
 REPORT=false
 WARMUP=2
 GEMS_MODE="all"
+TORCH_MODE="cuda"
 
 # 解析参数
 parse_args() {
@@ -70,6 +73,10 @@ parse_args() {
                 ;;
             --model)
                 MODEL_CONFIG="$2"
+                shift 2
+                ;;
+            --mode)
+                TORCH_MODE="$2"
                 shift 2
                 ;;
             --gems-mode)
@@ -288,9 +295,19 @@ run_torch_workflow() {
         exit 1
     fi
 
-    log_info "运行: $python_exe $perf_script --torch_path $torch_output_dir"
+    case "$TORCH_MODE" in
+        cuda|gems|compare)
+            ;;
+        *)
+            log_error "--mode 仅支持: cuda, gems, compare；当前值: $TORCH_MODE"
+            exit 1
+            ;;
+    esac
+
+    log_info "Torch 模式: $TORCH_MODE"
+    log_info "运行: $python_exe $perf_script --torch_path $torch_output_dir --mode $TORCH_MODE"
     cd "$PROJECT_ROOT"
-    $python_exe "$perf_script" --torch_path "$torch_output_dir"
+    $python_exe "$perf_script" --torch_path "$torch_output_dir" --mode "$TORCH_MODE"
 
     log_info "Torch profiler 分析完成"
 }

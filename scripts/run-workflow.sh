@@ -271,6 +271,9 @@ update_tool_config() {
     yq -i ".model.tokenizer_path = \"$tokenizer_path\"" "$TOOL_CONFIG"
     yq -i ".model.tensor_parallel_size = $tensor_parallel" "$TOOL_CONFIG"
 
+    # 从 CONFIG_FILE 复制服务配置到 tool_config
+    yq -i ".serve = $(yq '.serve // {}' "$CONFIG_FILE" -o=json)" "$TOOL_CONFIG"
+
     # 从 CONFIG_FILE 复制基准测试配置到 tool_config
     local benchmark_host benchmark_num_runs
     benchmark_host=$(yq '.benchmark.host // "127.0.0.1"' "$CONFIG_FILE")

@@ -9,12 +9,14 @@
 #   ./auto-processing.sh --model qwen-3.5 --workflow nsys
 #   ./auto-processing.sh --model qwen-3.5 --workflow nsys --skip-export
 #   ./auto-processing.sh --model qwen-3.5 --workflow torch
+#   ./auto-processing.sh --model qwen-3.5 --workflow torch --mode cuda
 #   ./auto-processing.sh --model qwen-3.5 --warmup 2
 #   ./auto-processing.sh --model qwen-3.5 --workflow all
 #
 # 参数:
 #   --model NAME          使用 config.yaml.NAME 作为配置文件
 #   --workflow TYPE       工作流类型 (bench|nsys|torch|shape|all，默认 bench)
+#   --mode TYPE           Torch 工作流模式 (cuda|gems|compare，默认 cuda)
 #   --gems-mode MODE      Shape 工作流使用的 FlagGems 模式 (默认 all)
 #   --warmup N            跳过预热轮数 (默认 2，bench/optimized 生效)
 #   --skip-export         与 --workflow nsys 配合使用，跳过 nsys 导出步骤
@@ -48,6 +50,7 @@ SKIP_EXPORT=false
 REPORT=false
 WARMUP=2
 GEMS_MODE="all"
+TORCH_MODE="cuda"
 
 # 解析参数
 parse_args() {
@@ -59,6 +62,10 @@ parse_args() {
                 ;;
             --workflow)
                 WORKFLOW="$2"
+                shift 2
+                ;;
+            --mode)
+                TORCH_MODE="$2"
                 shift 2
                 ;;
             --gems-mode)
@@ -104,6 +111,15 @@ validate_args() {
             exit 1
             ;;
     esac
+
+    case "$TORCH_MODE" in
+        cuda|gems|compare)
+            ;;
+        *)
+            log_error "--mode 仅支持: cuda, gems, compare；当前值: $TORCH_MODE"
+            exit 1
+            ;;
+    esac
 }
 
 # 构建基础参数
@@ -115,6 +131,7 @@ build_base_args() {
         args+=("--report")
     fi
     args+=("--gems-mode" "$GEMS_MODE")
+    args+=("--mode" "$TORCH_MODE")
     echo "${args[@]}"
 }
 
@@ -208,6 +225,7 @@ main() {
     log_info "FlagTune 一键数据处理"
     log_info "模型: $MODEL_CONFIG"
     log_info "工作流: $WORKFLOW"
+    log_info "Torch Mode: $TORCH_MODE"
     log_info "Gems Mode: $GEMS_MODE"
     log_info "Warmup: $WARMUP"
     if [[ "$REPORT" == true ]]; then
