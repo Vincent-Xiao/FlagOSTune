@@ -232,7 +232,30 @@ reports/<model>/shape/*.txt
 
 ---
 
-## 5. function_test.sh 说明
+## 5. Pretune 功能
+
+FlagGems 的 pretune 功能可提前对指定场景进行性能测试，筛选并缓存更优的 kernel 配置，供后续 benchmark 复用，从而提升整体测试性能表现。
+
+Gems Shape 场景 MM 性能测试
+
+```bash
+./scripts/auto-workflow.sh --model Qwen3.5-35B-A3B --device 0 --scenario shape --gems-mode mm --gems-once true
+```
+
+Gems Shape 场景 MM pretune 性能测试
+```bash
+./scripts/auto-workflow.sh --model Qwen3.5-35B-A3B --device 0 --scenario shape --gems-mode mm --gems-once true --pretune
+```
+
+说明：`--gems-once` 在`shape`场景写默认值为 `false`，需要改为 `true` 否则影响性能
+
+生成 MM pretune性能测试报告
+
+```bash
+./scripts/auto-processing.sh --model Qwen3.5-35B-A3B --workflow shape --report
+```
+
+## 6. function_test.sh 说明
 
 [`function_test.sh`](function_test.sh) 是一个简单的功能验证脚本，用来串联本仓库常用命令，方便快速执行以下流程：
 
@@ -240,5 +263,6 @@ reports/<model>/shape/*.txt
 - torch profiling 采集、单侧分析、对比分析
 - 多模型 torch profiling 汇总
 - FlagGems shape 导出与解析
+- FlagGems pretune 性能测试
 
 使用时可直接参考脚本中的命令顺序，按需手动执行，或将其作为日常回归测试的参考清单。

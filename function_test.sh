@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 
 # ## cuda optimized场景bencahmark测试
-# ./scripts/auto-workflow.sh --model Qwen3.5-35B-A3B --device 0 --mode cuda --scenario optimized
-# ## gems optimized场景bencahmark测试
-# ./scripts/auto-workflow.sh --model Qwen3.5-35B-A3B --device 0 --mode gems --scenario optimized
-# ## optimized场景性能报告
-# ./scripts/auto-processing.sh --model Qwen3.5-35B-A3B --workflow bench
+./scripts/auto-workflow.sh --model Qwen3.5-35B-A3B --device 0 --mode cuda --scenario optimized
+## gems optimized场景bencahmark测试
+./scripts/auto-workflow.sh --model Qwen3.5-35B-A3B --device 0 --mode gems --scenario optimized
+## optimized场景性能报告
+./scripts/auto-processing.sh --model Qwen3.5-35B-A3B --workflow bench
 
 # ## cuda optimized场景torch profling
 # ./scripts/auto-workflow.sh --model Qwen3.5-35B-A3B --device 0 --mode cuda --torch
@@ -24,3 +24,11 @@ python scripts/tools/perf_summary_torch.py
 ./scripts/auto-workflow.sh --model Qwen3.5-35B-A3B --device 0 --scenario shape
 ## gems shape场景算子shape 解析
 ./scripts/auto-processing.sh --model Qwen3.5-35B-A3B --workflow shape
+
+## pretune
+## gems shape场景mm性能测试
+./scripts/auto-workflow.sh --model Qwen3.5-35B-A3B --device 0 --scenario shape --gems-mode mm --gems-once true
+## gems shape场景pretune mm性能测试
+./scripts/auto-workflow.sh --model Qwen3.5-35B-A3B --device 0 --scenario shape --gems-mode mm --pretune --gems-once true
+## gems shape场景mm性能测试报告
+./scripts/auto-processing.sh --model Qwen3.5-35B-A3B --workflow shape --report

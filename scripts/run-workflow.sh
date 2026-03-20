@@ -430,6 +430,9 @@ generate_env_vars() {
         :
     elif [[ "$MODE" == "gems" ]]; then
         env_vars+=("USE_FLAGOS=1")
+        if [[ "$PRETUNE" == "true" ]]; then
+            env_vars+=("USE_FLAGTUNE=1")
+        fi
         if [[ "$GEMS_MODE" =~ ^[0-9]+$ ]]; then
             env_vars+=("USE_GEMS_MODE=${GEMS_MODE}")
         else

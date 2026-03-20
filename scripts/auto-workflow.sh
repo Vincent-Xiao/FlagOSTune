@@ -14,6 +14,8 @@
 #   ./auto-workflow.sh --model qwen-3.5 --mode gems --nsys
 #   ./auto-workflow.sh --model qwen-3.5 --torch
 #   ./auto-workflow.sh --model qwen-3.5 --scenario shape --gems-mode mm
+#   ./auto-workflow.sh --model qwen-3.5 --scenario shape --gems-once true
+#   ./auto-workflow.sh --model qwen-3.5 --scenario shape --gems-mode mm --pretune
 #   ./auto-workflow.sh --model qwen-3.5 --all
 #
 # 参数:
@@ -23,6 +25,8 @@
 #   --nsys                运行 nsys profiling 模式 (cuda + gems)
 #   --torch               运行 torch profiling 模式 (cuda + gems)
 #   --gems-mode MODE      FlagGems 模式 (默认 all)
+#   --gems-once BOOL      透传给 run-workflow.sh 的 GEMS_ONCE (true|false，默认 true)
+#   --pretune             透传给 run-workflow.sh，输出目录追加 pretune 后缀
 #   --all                 依次运行 shape → optimized → nsys
 #   --device N            GPU 设备 ID (默认 0)
 #
@@ -54,6 +58,8 @@ WORKFLOW_MODE="scenario"
 TARGET_MODE="all"
 SCENARIO="optimized"
 GEMS_MODE="all"
+GEMS_ONCE="true"
+PRETUNE=false
 
 # 解析参数
 parse_args() {
@@ -87,12 +93,20 @@ parse_args() {
                 GEMS_MODE="$2"
                 shift 2
                 ;;
+            --gems-once)
+                GEMS_ONCE="$2"
+                shift 2
+                ;;
+            --pretune)
+                PRETUNE=true
+                shift
+                ;;
             --all)
                 WORKFLOW_MODE="all"
                 shift
                 ;;
             -h|--help)
-                head -31 "$0" | tail -29
+                head -33 "$0" | tail -31
                 exit 0
                 ;;
             *)
@@ -127,6 +141,11 @@ validate_args() {
             exit 1
             ;;
     esac
+
+    if [[ "$GEMS_ONCE" != "true" && "$GEMS_ONCE" != "false" ]]; then
+        log_error "--gems-once 仅支持: true, false；当前值: $GEMS_ONCE"
+        exit 1
+    fi
 }
 
 # 构建 run-workflow 命令的基础参数
@@ -134,6 +153,9 @@ build_base_args() {
     local args=()
     args+=("--device" "$DEVICE")
     args+=("--model" "$MODEL_CONFIG")
+    if [[ "$PRETUNE" == "true" ]]; then
+        args+=("--pretune")
+    fi
     echo "${args[@]}"
 }
 
@@ -141,7 +163,10 @@ run_by_target_mode() {
     local scenario="$1"
     local extra_flag="${2:-}"
     local base_args
+    local gems_once_arg=""
     base_args=$(build_base_args)
+
+    gems_once_arg="--gems-once $GEMS_ONCE"
 
     case "$TARGET_MODE" in
         cuda)
@@ -161,16 +186,16 @@ run_by_target_mode() {
                 log_step "GEMS 场景 (${scenario})"
             fi
             if [[ "$scenario" == "shape" ]]; then
-                "${SCRIPT_DIR}/run-workflow.sh" --mode gems --gems-mode "$GEMS_MODE" $base_args --scenario shape --gems-once false ${extra_flag:+$extra_flag}
+                "${SCRIPT_DIR}/run-workflow.sh" --mode gems --gems-mode "$GEMS_MODE" $base_args --scenario shape $gems_once_arg ${extra_flag:+$extra_flag}
             else
-                "${SCRIPT_DIR}/run-workflow.sh" --mode gems --gems-mode "$GEMS_MODE" $base_args --scenario "$scenario" ${extra_flag:+$extra_flag}
+                "${SCRIPT_DIR}/run-workflow.sh" --mode gems --gems-mode "$GEMS_MODE" $base_args --scenario "$scenario" $gems_once_arg ${extra_flag:+$extra_flag}
             fi
             ;;
         all)
             if [[ "$scenario" == "shape" ]]; then
                 log_info "shape 场景仅运行 GEMS"
                 log_step "GEMS Shape 场景"
-                "${SCRIPT_DIR}/run-workflow.sh" --mode gems --gems-mode "$GEMS_MODE" $base_args --scenario shape --gems-once false ${extra_flag:+$extra_flag}
+                "${SCRIPT_DIR}/run-workflow.sh" --mode gems --gems-mode "$GEMS_MODE" $base_args --scenario shape $gems_once_arg ${extra_flag:+$extra_flag}
             else
                 if [[ -n "$extra_flag" ]]; then
                     log_step "CUDA ${extra_flag#-- } ${scenario}"
@@ -184,7 +209,7 @@ run_by_target_mode() {
                 else
                     log_step "GEMS 场景 (${scenario})"
                 fi
-                "${SCRIPT_DIR}/run-workflow.sh" --mode gems --gems-mode "$GEMS_MODE" $base_args --scenario "$scenario" ${extra_flag:+$extra_flag}
+                "${SCRIPT_DIR}/run-workflow.sh" --mode gems --gems-mode "$GEMS_MODE" $base_args --scenario "$scenario" $gems_once_arg ${extra_flag:+$extra_flag}
             fi
             ;;
     esac
@@ -193,7 +218,7 @@ run_by_target_mode() {
 # 运行指定场景
 run_scenario() {
     if [[ "$SCENARIO" == "shape" ]]; then
-        log_section "运行 Shape 场景 (GEMS_ONCE=false)"
+        log_section "运行 Shape 场景 (GEMS_ONCE=${GEMS_ONCE})"
     else
         log_section "运行 ${SCENARIO} 场景"
     fi
@@ -262,6 +287,8 @@ main() {
     log_info "运行目标: $TARGET_MODE"
     log_info "场景: $SCENARIO"
     log_info "GEMS 模式: $GEMS_MODE"
+    log_info "GEMS_ONCE: ${GEMS_ONCE}"
+    log_info "Pretune: $PRETUNE"
 
     cd "$PROJECT_ROOT"
 
