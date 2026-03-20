@@ -312,19 +312,104 @@ update_tool_config() {
         custom_suffix+="_${CUSTOM_SUFFIX}"
     fi
 
-    # 更新日志路径 (包含模型名和 shape 后缀)
+    # 固定的路径配置（每次运行强制全量覆盖，避免残留旧模型路径）
+    local paths_results="${PATHS_RESULTS}"
+    local paths_reports="${PATHS_REPORTS}"
+    local paths_use_model_name="${PATHS_USE_MODEL_NAME}"
+    local gems_config_name
+    gems_config_name=$(yq '.paths.gems_config // "gems-config"' "$CONFIG_FILE")
+
+    # 预期路径（用于写前检查 + 写后强校验）
     local log_dir="${PATH_PREFIX}/bench${scenario_suffix}${nsys_suffix}${torch_suffix}_log${shape_suffix}/vllm_bench_${MODE}${gems_suffix}${custom_suffix}_logs"
     local server_log_dir="${PATH_PREFIX}/server-logs${shape_suffix}"
     local nsys_output_dir="${PATH_PREFIX}/nsys-raw${shape_suffix}${custom_suffix}"
     local torch_output_dir="${PATH_PREFIX}/torch-raw${shape_suffix}${custom_suffix}"
     local reports_dir="${REPORT_PREFIX}"
+    local gems_config_dir="${PATH_PREFIX}/${gems_config_name}"
+    local gems_config_shape_dir="${PATH_PREFIX}/gems-config-shape"
 
+    # 写前一致性检查：检测是否存在模型-路径串台
+    local old_model_name old_log_dir old_nsys_dir old_torch_dir old_reports_dir old_server_log_dir
+    old_model_name=$(yq '.paths.model_name // ""' "$TOOL_CONFIG")
+    old_log_dir=$(yq '.paths.log_dir // ""' "$TOOL_CONFIG")
+    old_nsys_dir=$(yq '.paths.nsys_output_dir // ""' "$TOOL_CONFIG")
+    old_torch_dir=$(yq '.paths.torch_output_dir // ""' "$TOOL_CONFIG")
+    old_reports_dir=$(yq '.paths.reports_dir // ""' "$TOOL_CONFIG")
+    old_server_log_dir=$(yq '.paths.server_log_dir // ""' "$TOOL_CONFIG")
+
+    local drift_detected=false
+    if [[ "$old_model_name" != "$MODEL_NAME" ]]; then
+        drift_detected=true
+    fi
+    if [[ -n "$old_log_dir" && "$old_log_dir" != ${PATH_PREFIX}/* ]]; then
+        drift_detected=true
+    fi
+    if [[ -n "$old_nsys_dir" && "$old_nsys_dir" != ${PATH_PREFIX}/* ]]; then
+        drift_detected=true
+    fi
+    if [[ -n "$old_torch_dir" && "$old_torch_dir" != ${PATH_PREFIX}/* ]]; then
+        drift_detected=true
+    fi
+    if [[ -n "$old_reports_dir" && "$old_reports_dir" != ${REPORT_PREFIX}* ]]; then
+        drift_detected=true
+    fi
+    if [[ -n "$old_server_log_dir" && "$old_server_log_dir" != ${PATH_PREFIX}/* ]]; then
+        drift_detected=true
+    fi
+
+    if [[ "$drift_detected" == "true" ]]; then
+        log_warn "检测到 tool_config 路径与当前模型不一致，将强制重写 paths 全字段"
+        log_warn "当前模型: ${MODEL_NAME}, 旧模型: ${old_model_name}"
+        log_warn "旧 log_dir: ${old_log_dir}"
+    fi
+
+    # 强制重写 paths 全字段
+    yq -i ".paths.results = \"$paths_results\"" "$TOOL_CONFIG"
+    yq -i ".paths.reports = \"$paths_reports\"" "$TOOL_CONFIG"
+    yq -i ".paths.use_model_name = $paths_use_model_name" "$TOOL_CONFIG"
+    yq -i ".paths.gems_config = \"$gems_config_name\"" "$TOOL_CONFIG"
     yq -i ".paths.log_dir = \"$log_dir\"" "$TOOL_CONFIG"
     yq -i ".paths.server_log_dir = \"$server_log_dir\"" "$TOOL_CONFIG"
     yq -i ".paths.nsys_output_dir = \"$nsys_output_dir\"" "$TOOL_CONFIG"
     yq -i ".paths.torch_output_dir = \"$torch_output_dir\"" "$TOOL_CONFIG"
     yq -i ".paths.reports_dir = \"$reports_dir\"" "$TOOL_CONFIG"
     yq -i ".paths.model_name = \"$MODEL_NAME\"" "$TOOL_CONFIG"
+    yq -i ".paths.gems_config_dir = \"$gems_config_dir\"" "$TOOL_CONFIG"
+    yq -i ".paths.gems_config_shape_dir = \"$gems_config_shape_dir\"" "$TOOL_CONFIG"
+
+    # 写后强校验：任一关键字段不匹配立即失败
+    local actual_model_name actual_log_dir actual_server_log_dir actual_nsys_dir actual_torch_dir actual_reports_dir
+    local actual_results actual_reports actual_use_model_name actual_gems_config actual_gems_config_dir actual_gems_config_shape_dir
+    actual_model_name=$(yq '.paths.model_name // ""' "$TOOL_CONFIG")
+    actual_log_dir=$(yq '.paths.log_dir // ""' "$TOOL_CONFIG")
+    actual_server_log_dir=$(yq '.paths.server_log_dir // ""' "$TOOL_CONFIG")
+    actual_nsys_dir=$(yq '.paths.nsys_output_dir // ""' "$TOOL_CONFIG")
+    actual_torch_dir=$(yq '.paths.torch_output_dir // ""' "$TOOL_CONFIG")
+    actual_reports_dir=$(yq '.paths.reports_dir // ""' "$TOOL_CONFIG")
+    actual_results=$(yq '.paths.results // ""' "$TOOL_CONFIG")
+    actual_reports=$(yq '.paths.reports // ""' "$TOOL_CONFIG")
+    actual_use_model_name=$(yq '.paths.use_model_name // ""' "$TOOL_CONFIG")
+    actual_gems_config=$(yq '.paths.gems_config // ""' "$TOOL_CONFIG")
+    actual_gems_config_dir=$(yq '.paths.gems_config_dir // ""' "$TOOL_CONFIG")
+    actual_gems_config_shape_dir=$(yq '.paths.gems_config_shape_dir // ""' "$TOOL_CONFIG")
+
+    if [[ "$actual_model_name" != "$MODEL_NAME" ||
+        "$actual_log_dir" != "$log_dir" ||
+        "$actual_server_log_dir" != "$server_log_dir" ||
+        "$actual_nsys_dir" != "$nsys_output_dir" ||
+        "$actual_torch_dir" != "$torch_output_dir" ||
+        "$actual_reports_dir" != "$reports_dir" ||
+        "$actual_results" != "$paths_results" ||
+        "$actual_reports" != "$paths_reports" ||
+        "$actual_use_model_name" != "$paths_use_model_name" ||
+        "$actual_gems_config" != "$gems_config_name" ||
+        "$actual_gems_config_dir" != "$gems_config_dir" ||
+        "$actual_gems_config_shape_dir" != "$gems_config_shape_dir" ]]; then
+        log_error "tool_config 路径强校验失败，请检查 scripts/tools/tool_config.yaml 写入权限与 yq 版本"
+        log_error "预期 model_name=${MODEL_NAME}, 实际 model_name=${actual_model_name}"
+        log_error "预期 log_dir=${log_dir}, 实际 log_dir=${actual_log_dir}"
+        exit 1
+    fi
 
     log_info "工具配置已更新 (路径前缀: ${PATH_PREFIX})"
 }

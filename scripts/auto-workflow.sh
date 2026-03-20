@@ -16,6 +16,7 @@
 #   ./auto-workflow.sh --model qwen-3.5 --scenario shape --gems-mode mm
 #   ./auto-workflow.sh --model qwen-3.5 --scenario shape --gems-once true
 #   ./auto-workflow.sh --model qwen-3.5 --scenario shape --gems-mode mm --pretune
+#   ./auto-workflow.sh --model qwen-3.5 --runs 5
 #   ./auto-workflow.sh --model qwen-3.5 --all
 #
 # 参数:
@@ -27,6 +28,7 @@
 #   --gems-mode MODE      FlagGems 模式 (默认 all)
 #   --gems-once BOOL      透传给 run-workflow.sh 的 GEMS_ONCE (true|false，默认 true)
 #   --pretune             透传给 run-workflow.sh，输出目录追加 pretune 后缀
+#   --runs N              透传给 run-workflow.sh 的 --runs（覆盖 benchmark.num_runs）
 #   --all                 依次运行 shape → optimized → nsys
 #   --device N            GPU 设备 ID (默认 0)
 #
@@ -60,6 +62,7 @@ SCENARIO="optimized"
 GEMS_MODE="all"
 GEMS_ONCE="true"
 PRETUNE=false
+RUNS_OVERRIDE=""
 
 # 解析参数
 parse_args() {
@@ -100,6 +103,10 @@ parse_args() {
             --pretune)
                 PRETUNE=true
                 shift
+                ;;
+            --runs)
+                RUNS_OVERRIDE="$2"
+                shift 2
                 ;;
             --all)
                 WORKFLOW_MODE="all"
@@ -146,6 +153,11 @@ validate_args() {
         log_error "--gems-once 仅支持: true, false；当前值: $GEMS_ONCE"
         exit 1
     fi
+
+    if [[ -n "$RUNS_OVERRIDE" && ! "$RUNS_OVERRIDE" =~ ^[1-9][0-9]*$ ]]; then
+        log_error "--runs 必须是大于 0 的整数，当前值: $RUNS_OVERRIDE"
+        exit 1
+    fi
 }
 
 # 构建 run-workflow 命令的基础参数
@@ -153,6 +165,9 @@ build_base_args() {
     local args=()
     args+=("--device" "$DEVICE")
     args+=("--model" "$MODEL_CONFIG")
+    if [[ -n "$RUNS_OVERRIDE" ]]; then
+        args+=("--runs" "$RUNS_OVERRIDE")
+    fi
     if [[ "$PRETUNE" == "true" ]]; then
         args+=("--pretune")
     fi
@@ -288,6 +303,7 @@ main() {
     log_info "场景: $SCENARIO"
     log_info "GEMS 模式: $GEMS_MODE"
     log_info "GEMS_ONCE: ${GEMS_ONCE}"
+    log_info "Runs Override: ${RUNS_OVERRIDE:-<config>}"
     log_info "Pretune: $PRETUNE"
 
     cd "$PROJECT_ROOT"
