@@ -30,8 +30,8 @@ def get_tools_dir() -> Path:
 
 
 def load_tool_config() -> dict:
-    """Load tool_config.yaml"""
-    tool_config = get_tools_dir() / "tool_config.yaml"
+    """Load tool_config_report.yaml"""
+    tool_config = get_tools_dir() / "tool_config_report.yaml"
 
     if not tool_config.exists():
         return {}
