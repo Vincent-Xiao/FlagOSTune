@@ -21,7 +21,7 @@
 #
 # 参数:
 #   --model NAME          使用 config.yaml.NAME 作为配置文件
-#   --mode TYPE           运行目标 (cuda|gems|all，默认 all)
+#   --mode TYPE           运行目标 (cuda|gems|all，默认 all；shape 下 cuda=benchmark, gems=导出shape)
 #   --scenario TYPE       场景类型 (optimized|full|shape，默认 optimized)
 #   --nsys                运行 nsys profiling 模式 (cuda + gems)
 #   --torch               运行 torch profiling 模式 (cuda + gems)
@@ -185,10 +185,6 @@ run_by_target_mode() {
 
     case "$TARGET_MODE" in
         cuda)
-            if [[ "$scenario" == "shape" ]]; then
-                log_error "--mode cuda 不支持 shape 场景；请使用 --mode gems 或 --mode all"
-                exit 1
-            fi
             log_step "CUDA ${extra_flag#-- } ${scenario}"
             "${SCRIPT_DIR}/run-workflow.sh" --mode cuda $base_args --scenario "$scenario" ${extra_flag:+$extra_flag}
             ;;
@@ -208,7 +204,10 @@ run_by_target_mode() {
             ;;
         all)
             if [[ "$scenario" == "shape" ]]; then
-                log_info "shape 场景仅运行 GEMS"
+                log_info "shape 场景: CUDA 执行 benchmark，GEMS 执行导出shape"
+                log_step "CUDA Shape 场景"
+                "${SCRIPT_DIR}/run-workflow.sh" --mode cuda $base_args --scenario shape ${extra_flag:+$extra_flag}
+
                 log_step "GEMS Shape 场景"
                 "${SCRIPT_DIR}/run-workflow.sh" --mode gems --gems-mode "$GEMS_MODE" $base_args --scenario shape $gems_once_arg ${extra_flag:+$extra_flag}
             else
