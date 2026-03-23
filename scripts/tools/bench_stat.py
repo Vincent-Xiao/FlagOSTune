@@ -13,6 +13,7 @@ import re
 import subprocess
 import sys
 from datetime import date
+from typing import List
 
 import yaml
 
@@ -149,6 +150,41 @@ def parse_text_table(text: str):
     return header, body
 
 
+def sanitize_sheet_name(name: str, used_names: set) -> str:
+    """Make a valid, unique Excel sheet name (<=31 chars, no invalid chars)."""
+    safe = re.sub(r"[\\/*?:\[\]]", "_", name).strip()
+    safe = safe or "Sheet"
+    safe = safe[:31]
+
+    if safe not in used_names:
+        used_names.add(safe)
+        return safe
+
+    base = safe[:28] if len(safe) > 28 else safe
+    idx = 2
+    while True:
+        cand = f"{base}_{idx}"[:31]
+        if cand not in used_names:
+            used_names.add(cand)
+            return cand
+        idx += 1
+
+
+def write_excel_sheet(workbook, used_names: set, title: str, header: List[str], rows: List[List[str]]):
+    """Write one table to one Excel sheet."""
+    sheet_name = sanitize_sheet_name(title, used_names)
+    ws = workbook.create_sheet(title=sheet_name)
+
+    if header:
+        ws.append([str(c) if c is not None else "" for c in header])
+    for row in rows:
+        ws.append([str(c) if c is not None else "" for c in row])
+
+
+OUTPUT_COMPARISON_SHEET = "Output_Throughput_Comparison"
+TOTAL_COMPARISON_SHEET = "Total_Throughput_Comparison"
+
+
 def run_benchmark(script_path: Path, log_dir: str, warmup: int):
     proc = subprocess.run(
         [
@@ -211,6 +247,19 @@ def main():
     else:
         report_file = report_dir / f"bench-report-{date.today().isoformat()}.md"
 
+    excel_file = report_file.with_suffix(".xlsx")
+
+    workbook = None
+    used_sheet_names = set()
+    try:
+        from openpyxl import Workbook  # type: ignore
+
+        workbook = Workbook()
+        default_sheet = workbook.active
+        workbook.remove(default_sheet)
+    except Exception:
+        print("Warning: openpyxl is not available; skip Excel output.")
+
     # collect Out Mean and Tot Mean data per subdir
     collected = {}
     collected_tot = {}
@@ -241,6 +290,9 @@ def main():
             # parse table and collect Out Mean and Tot Mean values
             header, rows = parse_text_table(out)
             if header and rows:
+                if workbook is not None:
+                    write_excel_sheet(workbook, used_sheet_names, display_name, header, rows)
+
                 lower_header = [h.lower() for h in header]
                 try:
                     scen_idx = lower_header.index('scenario')
@@ -322,6 +374,7 @@ def main():
             header = ['Scenario'] + display_cols + display_speedup_cols
             rf.write('| ' + ' | '.join(header) + ' |\n')
             rf.write('| ' + ' | '.join(['---'] * len(header)) + ' |\n')
+            out_table_rows = []
 
             col_indices = {c: i for i, c in enumerate(cols)}
             cuda_idx = col_indices.get('cuda')
@@ -361,6 +414,7 @@ def main():
 
                 rf.write('| ' + ' | '.join(row) + ' |\n')
                 table_rows.append(values)
+                out_table_rows.append(row)
 
             numeric_table = [[to_float(v) for v in r] for r in table_rows]
 
@@ -414,6 +468,18 @@ def main():
                 rf.write('| ' + ' | '.join(min_row) + ' |\n')
                 rf.write('| ' + ' | '.join(max_row) + ' |\n')
                 rf.write('| ' + ' | '.join(avg_row) + ' |\n')
+                out_table_rows.append(min_row)
+                out_table_rows.append(max_row)
+                out_table_rows.append(avg_row)
+
+            if workbook is not None:
+                write_excel_sheet(
+                    workbook,
+                    used_sheet_names,
+                    OUTPUT_COMPARISON_SHEET,
+                    header,
+                    out_table_rows,
+                )
 
             if collected_tot:
                 rf.write('\n## Total Token Mean Throughput (tokens/s) Comparison\n\n')
@@ -421,6 +487,7 @@ def main():
                 header = ['Scenario'] + display_cols + display_speedup_cols
                 rf.write('| ' + ' | '.join(header) + ' |\n')
                 rf.write('| ' + ' | '.join(['---'] * len(header)) + ' |\n')
+                total_table_rows = []
 
                 table_rows = []
                 speedup_data = {sc: [] for sc in speedup_cols}
@@ -457,6 +524,7 @@ def main():
 
                     rf.write('| ' + ' | '.join(row) + ' |\n')
                     table_rows.append(values)
+                    total_table_rows.append(row)
 
                 numeric_table = [[to_float(v) for v in r] for r in table_rows]
                 avg_row = ['Average']
@@ -509,10 +577,28 @@ def main():
                     rf.write('| ' + ' | '.join(min_row) + ' |\n')
                     rf.write('| ' + ' | '.join(max_row) + ' |\n')
                     rf.write('| ' + ' | '.join(avg_row) + ' |\n')
+                    total_table_rows.append(min_row)
+                    total_table_rows.append(max_row)
+                    total_table_rows.append(avg_row)
 
-    # restore original file content
+                if workbook is not None:
+                    write_excel_sheet(
+                        workbook,
+                        used_sheet_names,
+                        TOTAL_COMPARISON_SHEET,
+                        header,
+                        total_table_rows,
+                    )
+
+        if workbook is not None:
+            workbook.save(excel_file)
+
+    # restore original benchmark script content
     bench_script.write_text(orig_content, encoding="utf-8")
+
     print(f"Report written to: {report_file}")
+    if workbook is not None:
+        print(f"Excel report written to: {excel_file}")
 
 
 if __name__ == "__main__":
