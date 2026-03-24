@@ -231,6 +231,12 @@ read_config() {
 update_tool_config() {
     log_step "更新工具配置..."
 
+    if [[ ! -f "$TOOL_CONFIG" ]]; then
+        log_warn "工具配置文件不存在，正在创建: $TOOL_CONFIG"
+        mkdir -p "$(dirname "$TOOL_CONFIG")"
+        printf "{}\n" >"$TOOL_CONFIG"
+    fi
+
     # 构建 gems_suffix
     local gems_suffix=""
     if [[ "$MODE" == "gems" ]]; then
