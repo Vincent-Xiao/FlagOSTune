@@ -2,11 +2,14 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SHAPE_CONFIG_DIR="$SCRIPT_DIR/shape-config"
+FLAGTUNE_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+SHAPE_CONFIG_DIR="$FLAGTUNE_DIR/shape-config"
 PRETUNE_SCRIPT="$SCRIPT_DIR/pretune.sh"
 OP="mm"
 CACHE_DIR="/root/.flaggems"
 DTYPES="bfloat16"
+WARMUP=100
+PARALLEL=8
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -22,10 +25,18 @@ while [[ $# -gt 0 ]]; do
       DTYPES="$2"
       shift 2
       ;;
+    --warmup)
+      WARMUP="$2"
+      shift 2
+      ;;
+    --parallel)
+      PARALLEL="$2"
+      shift 2
+      ;;
     -h|--help)
-      echo "Usage: $0 [--op <op_name>] [--cache-dir <dir>] [--dtypes <dtype_list>]"
-      echo "Default: $0 --op mm --cache-dir /root/.flaggems --dtypes bfloat16"
-      echo "Example: $0 --op mm --cache-dir /root/.flaggems --dtypes bfloat16"
+      echo "Usage: $0 [--op <op_name>] [--cache-dir <dir>] [--dtypes <dtype_list>] [--warmup <count>] [--parallel <count>]"
+      echo "Default: $0 --op mm --cache-dir /root/.flaggems --dtypes bfloat16 --warmup 100 --parallel 8"
+      echo "Example: $0 --op mm --cache-dir /root/.flaggems --dtypes bfloat16 --warmup 100 --parallel 8"
       exit 0
       ;;
     *)
@@ -69,7 +80,7 @@ for file in "${shape_files[@]}"; do
 
   echo
   echo "[INFO] [$index/$total] Running pretune for model: $model"
-  if ! "$PRETUNE_SCRIPT" --model "$model" --op "$OP" --cache-dir "$CACHE_DIR" --dtypes "$DTYPES"; then
+  if ! "$PRETUNE_SCRIPT" --model "$model" --op "$OP" --cache-dir "$CACHE_DIR" --dtypes "$DTYPES" --warmup "$WARMUP" --parallel "$PARALLEL"; then
     failed=$((failed + 1))
     echo "[ERROR] pretune failed for model: $model"
   fi

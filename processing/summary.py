@@ -449,7 +449,7 @@ def build_report_content(
     lines.append(f"# Performance Summary: {model} / {op}")
     lines.append("")
     lines.append(f"- Source log: `log/flagtune/{model}/{op}/pretune/pretune.log`")
-    lines.append(f"- Count reference: `flagtune/shape-config/{model}_count.yaml`")
+    lines.append(f"- Count reference: `FlagTune/shape-config/{model}_count.yaml`")
     lines.append(f"- Rows: {len(rows_by_gain)}")
     lines.append("")
 
@@ -470,13 +470,14 @@ def main() -> None:
     args = parser.parse_args()
 
     repo_root = Path(__file__).resolve().parent.parent.parent
+    flagtune_dir = Path(__file__).resolve().parent.parent
     log_path = repo_root / "log" / "flagtune" / args.model / args.op / "pretune" / "pretune.log"
-    count_yaml_path = repo_root / "flagtune" / "shape-config" / f"{args.model}_count.yaml"
-    model_yaml_path = repo_root / "flagtune" / "shape-config" / f"{args.model}.yaml"
-    gain_yaml_path = repo_root / "flagtune" / "shape-config" / f"{args.model}_gain.yaml"
-    lose_yaml_path = repo_root / "flagtune" / "shape-config" / f"{args.model}_lose.yaml"
-    output_path = repo_root / "flagtune" / "reports" / f"{args.model}_{args.op}.md"
-    output_xlsx_path = repo_root / "flagtune" / "reports" / f"{args.model}_{args.op}.xlsx"
+    count_yaml_path = flagtune_dir / "shape-config" / f"{args.model}_count.yaml"
+    model_yaml_path = flagtune_dir / "shape-config" / f"{args.model}.yaml"
+    gain_yaml_path = flagtune_dir / "shape-config" / f"{args.model}_gain.yaml"
+    lose_yaml_path = flagtune_dir / "shape-config" / f"{args.model}_lose.yaml"
+    output_path = flagtune_dir / "reports" / f"{args.model}_{args.op}.md"
+    output_xlsx_path = flagtune_dir / "reports" / f"{args.model}_{args.op}.xlsx"
 
     if not log_path.exists():
         raise FileNotFoundError(f"Log file not found: {log_path}")

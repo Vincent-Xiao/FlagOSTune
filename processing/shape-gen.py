@@ -187,7 +187,7 @@ def main() -> None:
     parser.add_argument(
         "--model",
         default="qwen3.5",
-        help="Model name used to resolve input/output files under flagtune/shape-config",
+        help="Model name used to resolve input/output files under FlagTune/shape-config",
     )
     parser.add_argument(
         "--op",
@@ -196,8 +196,8 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    repo_root = Path(__file__).resolve().parent.parent.parent
-    shape_config_dir = repo_root / "flagtune" / "shape-config"
+    flagtune_dir = Path(__file__).resolve().parent.parent
+    shape_config_dir = flagtune_dir / "shape-config"
     input_path = shape_config_dir / f"{args.model}.txt"
     if args.op:
         output_path = shape_config_dir / f"{args.model}_{args.op}.yaml"
