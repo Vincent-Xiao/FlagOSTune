@@ -5,9 +5,9 @@
 ```bash
 git clone https://github.com/Vincent-Xiao/FlagGems.git
 cd FlagGems
-git checkout v4.2.1.rc.0_flagtune
 pip install scikit-build-core>=0.11 pybind11 ninja setuptools_scm py-test openpyxl
 pip install --no-build-isolation -v -e .
+git clone https://vincent-gitea.iepose.cn/FlagOS/FlagTune.git -b flaggems
 ```
 
 ## 目录说明
@@ -161,8 +161,3 @@ pytest benchmark/test_blas_perf_parallel.py \
   - `FlagTune/shape-config/<model>_gain.yaml`
   - `FlagTune/shape-config/<model>_lose.yaml`
 
-## 注意事项
-
-- 目录名区分大小写，统一使用 `FlagTune/`，不要写成 `flagtune/`。
-- `pretune.sh` 已经按脚本路径自动定位仓库根目录，通常可以从任意当前目录启动。
-- `--parallel N` 需要足够数量的 GPU；例如 `--parallel 8` 表示并行使用 8 张卡。
