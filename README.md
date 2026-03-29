@@ -64,15 +64,22 @@ FlagTune/shape-config/Qwen3.5-35B-A3B-p32768d1024.txt
 当前默认参数：
 
 - `--model Qwen3.5-35B-A3B-p32768d1024`
+- `--yaml Qwen3.5-35B-A3B-p32768d1024`
 - `--op mm`
 - `--cache-dir /root/.flaggems`
 - `--dtypes bfloat16`
 - `--warmup 100`
 - `--parallel 8`
 
+参数行为：
+
+- 显式传 `--model` 时，走 model 模式，先执行 `shape-gen.py`。
+- 未传 `--model`、但显式传 `--yaml` 时，走 yaml 模式，直接加载 `FlagTune/shape-config/<yaml>.yaml`。
+- `--model` 和 `--yaml` 都不传时，默认走 model 模式。
+
 执行流程：
 
-1. 运行 `FlagTune/processing/shape-gen.py`，从 `FlagTune/shape-config/<model>.txt` 生成 `yaml` 和 `count.yaml`。
+1. model 模式下运行 `FlagTune/processing/shape-gen.py`，从 `FlagTune/shape-config/<model>.txt` 生成 `yaml` 和 `count.yaml`；yaml 模式下跳过这一步。
 2. 对 `mm` / `w8a8_block_fp8_matmul` / `w8a8_block_fp8_matmul_deepgemm` 执行两轮 benchmark：
    `default configuration` 和 `expand configuration`。
 3. benchmark 使用：
@@ -80,12 +87,13 @@ FlagTune/shape-config/Qwen3.5-35B-A3B-p32768d1024.txt
 ```bash
 pytest benchmark/test_blas_perf_parallel.py \
   -m <op> \
-  --shape_file FlagTune/shape-config/<model>.yaml \
+  --shape_file FlagTune/shape-config/<shape_file>.yaml \
   --parallel <parallel> \
   --warmup <warmup>
 ```
 
 4. 运行 `FlagTune/processing/summary.py` 生成报告，并输出 `*_gain.yaml` 与 `*_lose.yaml`。
+   如果不存在 `*_count.yaml`，report 仍会生成，`Count` 列回退为 `1`，Excel 中不会生成 `Sorted by Count` sheet。
 
 常见用法：
 
@@ -95,6 +103,9 @@ pytest benchmark/test_blas_perf_parallel.py \
 
 # 指定模型与算子
 ./FlagTune/scripts/pretune.sh --model Qwen3.5-35B-A3B-p32768d1024 --op mm
+
+# 直接使用已有 yaml，不再执行 shape-gen.py
+./FlagTune/scripts/pretune.sh --yaml Qwen3.5-35B-A3B-p32768d1024_default_bad_case --op mm
 
 # 调整 warmup 和并行卡数
 ./FlagTune/scripts/pretune.sh --warmup 200 --parallel 4
@@ -108,17 +119,23 @@ pytest benchmark/test_blas_perf_parallel.py \
 
 输出结果：
 
-- `FlagTune/shape-config/<model>.yaml`
-- `FlagTune/shape-config/<model>_count.yaml`
-- `FlagTune/shape-config/<model>_gain.yaml`
-- `FlagTune/shape-config/<model>_lose.yaml`
-- `FlagTune/reports/<model>_<op>.md`
-- `FlagTune/reports/<model>_<op>.xlsx`
-- `log/flagtune/<model>/<op>/pretune/pretune.log`
+- model 模式：
+  - `FlagTune/shape-config/<model>.yaml`
+  - `FlagTune/shape-config/<model>_count.yaml`
+  - `FlagTune/shape-config/<model>_gain.yaml`
+  - `FlagTune/shape-config/<model>_lose.yaml`
+  - `FlagTune/reports/<model>_<op>.md`
+  - `FlagTune/reports/<model>_<op>.xlsx`
+  - `log/flagtune/<model>/<op>/pretune/pretune.log`
+- yaml 模式：
+  - 输入 yaml 会被直接使用，例如 `FlagTune/shape-config/<yaml>.yaml`
+  - 输出报告与日志路径中的名字使用 `<yaml>`
+  - 如果不存在 `FlagTune/shape-config/<yaml>_count.yaml`，则 report 中 `Count=1`
 
 ## 批量 pretune
 
-批量脚本会遍历 `FlagTune/shape-config/` 下所有 `*.txt`，逐个调用 `pretune.sh`。
+批量脚本会遍历 `FlagTune/shape-config/` 下所有 `*.txt`，逐个调用 `pretune.sh --model`。
+批量模式只使用 `--model`，不会使用 `--yaml`。
 
 ```bash
 ./FlagTune/scripts/pretune_batch.sh
@@ -154,10 +171,13 @@ pytest benchmark/test_blas_perf_parallel.py \
 - 输入：
   - `log/flagtune/<model>/<op>/pretune/pretune.log`
   - `FlagTune/shape-config/<model>.yaml`
-  - `FlagTune/shape-config/<model>_count.yaml`
+  - `FlagTune/shape-config/<model>_count.yaml`，可选
 - 输出：
   - `FlagTune/reports/<model>_<op>.md`
   - `FlagTune/reports/<model>_<op>.xlsx`
   - `FlagTune/shape-config/<model>_gain.yaml`
   - `FlagTune/shape-config/<model>_lose.yaml`
-
+- 当 `*_count.yaml` 缺失时：
+  - Markdown / Excel report 仍会生成
+  - `Count` 列回退为 `1`
+  - Excel 不生成 `Sorted by Count` sheet

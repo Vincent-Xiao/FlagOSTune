@@ -35,6 +35,8 @@ while [[ $# -gt 0 ]]; do
       ;;
     -h|--help)
       echo "Usage: $0 [--op <op_name>] [--cache-dir <dir>] [--dtypes <dtype_list>] [--warmup <count>] [--parallel <count>]"
+      echo "Behavior: this batch script only uses --model mode and never passes --yaml to pretune.sh."
+      echo "Source: it scans FlagTune/shape-config/*.txt and converts each filename to a model name."
       echo "Default: $0 --op mm --cache-dir /root/.flaggems --dtypes bfloat16 --warmup 100 --parallel 8"
       echo "Example: $0 --op mm --cache-dir /root/.flaggems --dtypes bfloat16 --warmup 100 --parallel 8"
       exit 0
@@ -60,20 +62,21 @@ if [[ ! -x "$PRETUNE_SCRIPT" ]]; then
   fi
 fi
 
-mapfile -t shape_files < <(find "$SHAPE_CONFIG_DIR" -maxdepth 1 -type f -name "*.txt" | sort)
+mapfile -t model_files < <(find "$SHAPE_CONFIG_DIR" -maxdepth 1 -type f -name "*.txt" | sort)
 
-if [[ ${#shape_files[@]} -eq 0 ]]; then
+if [[ ${#model_files[@]} -eq 0 ]]; then
   echo "[ERROR] No files found in: $SHAPE_CONFIG_DIR"
   exit 1
 fi
 
-total=${#shape_files[@]}
+total=${#model_files[@]}
 index=0
 failed=0
 
-echo "[INFO] Found $total shape-config files."
+echo "[INFO] Found $total model definition files."
+echo "[INFO] Batch mode uses pretune.sh --model only."
 
-for file in "${shape_files[@]}"; do
+for file in "${model_files[@]}"; do
   index=$((index + 1))
   model="$(basename "$file")"
   model="${model%.*}"

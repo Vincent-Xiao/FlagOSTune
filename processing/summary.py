@@ -117,13 +117,15 @@ def infer_bmnk_from_shape_text(shape_text: str) -> tuple[int, int, int, int] | N
 
 
 def convert_shape_to_bmnk_and_count(
-    shape_text: str, count_map: dict[tuple[int, int, int, int], int]
+    shape_text: str,
+    count_map: dict[tuple[int, int, int, int], int],
+    default_count: int | str = "-",
 ) -> tuple[str, str]:
     bmnk = infer_bmnk_from_shape_text(shape_text)
     if bmnk is None:
-        return shape_text, "-"
+        return shape_text, str(default_count)
 
-    count = count_map.get(bmnk, "-")
+    count = count_map.get(bmnk, default_count)
     b, m, n, k = bmnk
     return f"{b}, {m}, {n}, {k}", str(count)
 
@@ -305,6 +307,7 @@ def build_table_rows(
     sections: dict[str, dict[str, tuple[str, str, str]]],
     shape_order: list[str],
     count_map: dict[tuple[int, int, int, int], int],
+    default_count: int | str = "-",
 ) -> tuple[list[list[str]], list[list[str]]]:
     table_rows: list[list[str]] = []
 
@@ -312,7 +315,7 @@ def build_table_rows(
         default_metrics = sections["default"].get(shape, ("-", "-", "-"))
         expand_metrics = sections["expand"].get(shape, ("-", "-", "-"))
 
-        shape_bmnk, count = convert_shape_to_bmnk_and_count(shape, count_map)
+        shape_bmnk, count = convert_shape_to_bmnk_and_count(shape, count_map, default_count)
         gain = calc_gain_percent(default_metrics[2], expand_metrics[2])
 
         row = [
@@ -333,7 +336,12 @@ def build_table_rows(
     return rows_by_gain, rows_by_count
 
 
-def write_excel_report(xlsx_path: Path, rows_by_gain: list[list[str]], rows_by_count: list[list[str]]) -> None:
+def write_excel_report(
+    xlsx_path: Path,
+    rows_by_gain: list[list[str]],
+    rows_by_count: list[list[str]],
+    include_count_sheet: bool = True,
+) -> None:
     def style_sheet(ws) -> None:
         header_font = Font(bold=True)
         center_alignment = Alignment(horizontal="center", vertical="center")
@@ -398,8 +406,9 @@ def write_excel_report(xlsx_path: Path, rows_by_gain: list[list[str]], rows_by_c
     ws_gain.title = "Sorted by Speedup Gain"
     write_sheet(ws_gain, rows_by_gain)
 
-    ws_count = workbook.create_sheet(title="Sorted by Count")
-    write_sheet(ws_count, rows_by_count)
+    if include_count_sheet:
+        ws_count = workbook.create_sheet(title="Sorted by Count")
+        write_sheet(ws_count, rows_by_count)
 
     workbook.save(xlsx_path)
 
@@ -444,17 +453,22 @@ def build_report_content(
     op: str,
     rows_by_gain: list[list[str]],
     rows_by_count: list[list[str]],
+    count_yaml_exists: bool,
 ) -> str:
     lines: list[str] = []
     lines.append(f"# Performance Summary: {model} / {op}")
     lines.append("")
     lines.append(f"- Source log: `log/flagtune/{model}/{op}/pretune/pretune.log`")
-    lines.append(f"- Count reference: `FlagTune/shape-config/{model}_count.yaml`")
+    if count_yaml_exists:
+        lines.append(f"- Count reference: `FlagTune/shape-config/{model}_count.yaml`")
+    else:
+        lines.append("- Count reference: missing, all counts fallback to `1`")
     lines.append(f"- Rows: {len(rows_by_gain)}")
     lines.append("")
 
     append_table(lines, "Sorted by Speedup Gain", rows_by_gain)
-    append_table(lines, "Sorted by Count", rows_by_count)
+    if count_yaml_exists:
+        append_table(lines, "Sorted by Count", rows_by_count)
 
     lines.append("")
     return "\n".join(lines)
@@ -481,22 +495,22 @@ def main() -> None:
 
     if not log_path.exists():
         raise FileNotFoundError(f"Log file not found: {log_path}")
-    if not count_yaml_path.exists():
-        raise FileNotFoundError(f"Count yaml not found: {count_yaml_path}")
     if not model_yaml_path.exists():
         raise FileNotFoundError(f"Model yaml not found: {model_yaml_path}")
 
     sections, shape_order = parse_log(log_path)
-    count_map = parse_count_map(count_yaml_path, args.op)
+    count_yaml_exists = count_yaml_path.exists()
+    count_map = parse_count_map(count_yaml_path, args.op) if count_yaml_exists else {}
     if not shape_order:
         raise ValueError("No performance rows were parsed from the log file")
 
-    rows_by_gain, rows_by_count = build_table_rows(sections, shape_order, count_map)
+    default_count = 1 if not count_yaml_exists else "-"
+    rows_by_gain, rows_by_count = build_table_rows(sections, shape_order, count_map, default_count)
 
-    report = build_report_content(args.model, args.op, rows_by_gain, rows_by_count)
+    report = build_report_content(args.model, args.op, rows_by_gain, rows_by_count, count_yaml_exists)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(report, encoding="utf-8")
-    write_excel_report(output_xlsx_path, rows_by_gain, rows_by_count)
+    write_excel_report(output_xlsx_path, rows_by_gain, rows_by_count, include_count_sheet=count_yaml_exists)
     gain_count, lose_count = split_and_write_gain_lose_yaml(
         model_yaml_path,
         gain_yaml_path,
