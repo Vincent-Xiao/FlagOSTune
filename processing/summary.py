@@ -9,8 +9,6 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font
 from openpyxl.utils import get_column_letter
 
-DEFAULT_INFO_RE = re.compile(r"\[INFO\].*with default configuration\.")
-EXPAND_INFO_RE = re.compile(r"\[INFO\].*with expand configuration\.")
 DATA_LINE_RE = re.compile(
     r"^(?P<status>\S+)\s+"
     r"(?P<torch>[\d.eE+-]+)\s+"
@@ -29,12 +27,12 @@ OP_SHAPE_SOURCE_MAP = {
 TABLE_HEADERS = [
     "Shape (B, M, N, K)",
     "Count",
-    "Torch Latency with default configuration (ms)",
-    "Gems Latency with default configuration (ms)",
-    "Gems Speedup with default configuration",
-    "Torch Latency with expand configuration (ms)",
-    "Gems Latency with expand configuration (ms)",
-    "Gems Speedup with expand configuration",
+    "Torch Latency with left configuration (ms)",
+    "Gems Latency with left configuration (ms)",
+    "Gems Speedup with left configuration",
+    "Torch Latency with right configuration (ms)",
+    "Gems Latency with right configuration (ms)",
+    "Gems Speedup with right configuration",
     "Speedup Gain",
 ]
 
@@ -292,12 +290,21 @@ def split_and_write_gain_lose_yaml(
     return gain_count, lose_count
 
 
-def append_table(lines: list[str], title: str, rows: list[list[str]]) -> None:
+def append_table(
+    lines: list[str],
+    title: str,
+    rows: list[list[str]],
+    left_report_label: str,
+    right_report_label: str,
+) -> None:
     lines.append(f"## {title}")
     lines.append("")
-    lines.append("| Shape (B, M, N, K) | Count | Default Configuration |  |  | Expand Configuration |  |  | Speedup Gain |")
+    lines.append(f"| Shape (B, M, N, K) | Count | {left_report_label} |  |  | {right_report_label} |  |  | Speedup Gain |")
     lines.append("| --- | --- | --- | --- | --- | --- | --- | --- | --- |")
-    lines.append("|  |  | Torch Latency (ms) | Gems Latency (ms) | Gems Speedup | Torch Latency (ms) | Gems Latency (ms) | Gems Speedup | Expand vs Default |")
+    lines.append(
+        f"|  |  | Torch Latency (ms) | Gems Latency (ms) | Gems Speedup | "
+        f"Torch Latency (ms) | Gems Latency (ms) | Gems Speedup | {right_report_label} vs {left_report_label} |"
+    )
     for row in rows:
         lines.append("| " + " | ".join(row) + " |")
     lines.append("")
@@ -312,21 +319,21 @@ def build_table_rows(
     table_rows: list[list[str]] = []
 
     for shape in shape_order:
-        default_metrics = sections["default"].get(shape, ("-", "-", "-"))
-        expand_metrics = sections["expand"].get(shape, ("-", "-", "-"))
+        left_metrics = sections["left"].get(shape, ("-", "-", "-"))
+        right_metrics = sections["right"].get(shape, ("-", "-", "-"))
 
         shape_bmnk, count = convert_shape_to_bmnk_and_count(shape, count_map, default_count)
-        gain = calc_gain_percent(default_metrics[2], expand_metrics[2])
+        gain = calc_gain_percent(left_metrics[2], right_metrics[2])
 
         row = [
             shape_bmnk,
             count,
-            default_metrics[0],
-            default_metrics[1],
-            default_metrics[2],
-            expand_metrics[0],
-            expand_metrics[1],
-            expand_metrics[2],
+            left_metrics[0],
+            left_metrics[1],
+            left_metrics[2],
+            right_metrics[0],
+            right_metrics[1],
+            right_metrics[2],
             gain,
         ]
         table_rows.append(row)
@@ -340,6 +347,8 @@ def write_excel_report(
     xlsx_path: Path,
     rows_by_gain: list[list[str]],
     rows_by_count: list[list[str]],
+    left_report_label: str,
+    right_report_label: str,
     include_count_sheet: bool = True,
 ) -> None:
     def style_sheet(ws) -> None:
@@ -369,10 +378,10 @@ def write_excel_report(
         ws.append([
             "Shape (B, M, N, K)",
             "Count",
-            "Default Configuration",
+            left_report_label,
             "",
             "",
-            "Expand Configuration",
+            right_report_label,
             "",
             "",
             "Speedup Gain",
@@ -386,7 +395,7 @@ def write_excel_report(
             "Torch Latency (ms)",
             "Gems Latency (ms)",
             "Gems Speedup",
-            "Expand vs Default",
+            f"{right_report_label} vs {left_report_label}",
         ])
 
         ws.merge_cells("A1:A2")
@@ -413,8 +422,14 @@ def write_excel_report(
     workbook.save(xlsx_path)
 
 
-def parse_log(log_path: Path) -> tuple[dict[str, dict[str, tuple[str, str, str]]], list[str]]:
-    sections: dict[str, dict[str, tuple[str, str, str]]] = {"default": {}, "expand": {}}
+def parse_log(
+    log_path: Path,
+    left_stage_label: str = "default",
+    right_stage_label: str = "expand",
+) -> tuple[dict[str, dict[str, tuple[str, str, str]]], list[str]]:
+    left_info_re = re.compile(rf"\[INFO\].*with {re.escape(left_stage_label)} configuration\.")
+    right_info_re = re.compile(rf"\[INFO\].*with {re.escape(right_stage_label)} configuration\.")
+    sections: dict[str, dict[str, tuple[str, str, str]]] = {"left": {}, "right": {}}
     shape_order: list[str] = []
     current_section: str | None = None
 
@@ -424,11 +439,11 @@ def parse_log(log_path: Path) -> tuple[dict[str, dict[str, tuple[str, str, str]]
             if not line:
                 continue
 
-            if DEFAULT_INFO_RE.search(line):
-                current_section = "default"
+            if left_info_re.search(line):
+                current_section = "left"
                 continue
-            if EXPAND_INFO_RE.search(line):
-                current_section = "expand"
+            if right_info_re.search(line):
+                current_section = "right"
                 continue
 
             if current_section is None:
@@ -454,11 +469,14 @@ def build_report_content(
     rows_by_gain: list[list[str]],
     rows_by_count: list[list[str]],
     count_yaml_exists: bool,
+    left_report_label: str,
+    right_report_label: str,
 ) -> str:
     lines: list[str] = []
     lines.append(f"# Performance Summary: {model} / {op}")
     lines.append("")
     lines.append(f"- Source log: `log/flagtune/{model}/{op}/pretune/pretune.log`")
+    lines.append(f"- Compare: `{left_report_label}` vs `{right_report_label}`")
     if count_yaml_exists:
         lines.append(f"- Count reference: `FlagTune/shape-config/{model}_count.yaml`")
     else:
@@ -466,9 +484,9 @@ def build_report_content(
     lines.append(f"- Rows: {len(rows_by_gain)}")
     lines.append("")
 
-    append_table(lines, "Sorted by Speedup Gain", rows_by_gain)
+    append_table(lines, "Sorted by Speedup Gain", rows_by_gain, left_report_label, right_report_label)
     if count_yaml_exists:
-        append_table(lines, "Sorted by Count", rows_by_count)
+        append_table(lines, "Sorted by Count", rows_by_count, left_report_label, right_report_label)
 
     lines.append("")
     return "\n".join(lines)
@@ -481,6 +499,11 @@ def main() -> None:
     )
     parser.add_argument("--model", default="qwen3.5", help="Model name")
     parser.add_argument("--op", default="mm", help="Operator name")
+    parser.add_argument("--output-suffix", default="", help="Suffix appended to report filenames, for example _master")
+    parser.add_argument("--left-stage-label", default="default", help="Log stage name for the left-side comparison")
+    parser.add_argument("--right-stage-label", default="expand", help="Log stage name for the right-side comparison")
+    parser.add_argument("--left-report-label", default="Default Configuration", help="Report column title for the left-side comparison")
+    parser.add_argument("--right-report-label", default="Expand Configuration", help="Report column title for the right-side comparison")
     args = parser.parse_args()
 
     repo_root = Path(__file__).resolve().parent.parent.parent
@@ -490,15 +513,15 @@ def main() -> None:
     model_yaml_path = flagtune_dir / "shape-config" / f"{args.model}.yaml"
     gain_yaml_path = flagtune_dir / "shape-config" / f"{args.model}_gain.yaml"
     lose_yaml_path = flagtune_dir / "shape-config" / f"{args.model}_lose.yaml"
-    output_path = flagtune_dir / "reports" / f"{args.model}_{args.op}.md"
-    output_xlsx_path = flagtune_dir / "reports" / f"{args.model}_{args.op}.xlsx"
+    output_path = flagtune_dir / "reports" / f"{args.model}_{args.op}{args.output_suffix}.md"
+    output_xlsx_path = flagtune_dir / "reports" / f"{args.model}_{args.op}{args.output_suffix}.xlsx"
 
     if not log_path.exists():
         raise FileNotFoundError(f"Log file not found: {log_path}")
     if not model_yaml_path.exists():
         raise FileNotFoundError(f"Model yaml not found: {model_yaml_path}")
 
-    sections, shape_order = parse_log(log_path)
+    sections, shape_order = parse_log(log_path, args.left_stage_label, args.right_stage_label)
     count_yaml_exists = count_yaml_path.exists()
     count_map = parse_count_map(count_yaml_path, args.op) if count_yaml_exists else {}
     if not shape_order:
@@ -507,10 +530,25 @@ def main() -> None:
     default_count = 1 if not count_yaml_exists else "-"
     rows_by_gain, rows_by_count = build_table_rows(sections, shape_order, count_map, default_count)
 
-    report = build_report_content(args.model, args.op, rows_by_gain, rows_by_count, count_yaml_exists)
+    report = build_report_content(
+        args.model,
+        args.op,
+        rows_by_gain,
+        rows_by_count,
+        count_yaml_exists,
+        args.left_report_label,
+        args.right_report_label,
+    )
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(report, encoding="utf-8")
-    write_excel_report(output_xlsx_path, rows_by_gain, rows_by_count, include_count_sheet=count_yaml_exists)
+    write_excel_report(
+        output_xlsx_path,
+        rows_by_gain,
+        rows_by_count,
+        args.left_report_label,
+        args.right_report_label,
+        include_count_sheet=count_yaml_exists,
+    )
     gain_count, lose_count = split_and_write_gain_lose_yaml(
         model_yaml_path,
         gain_yaml_path,

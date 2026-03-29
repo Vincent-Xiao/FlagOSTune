@@ -65,6 +65,7 @@ FlagTune/shape-config/Qwen3.5-35B-A3B-p32768d1024.txt
 
 - `--model Qwen3.5-35B-A3B-p32768d1024`
 - `--yaml Qwen3.5-35B-A3B-p32768d1024`
+- `--clear-cache false`
 - `--op mm`
 - `--cache-dir /root/.flaggems`
 - `--dtypes bfloat16`
@@ -76,12 +77,15 @@ FlagTune/shape-config/Qwen3.5-35B-A3B-p32768d1024.txt
 - 显式传 `--model` 时，走 model 模式，先执行 `shape-gen.py`。
 - 未传 `--model`、但显式传 `--yaml` 时，走 yaml 模式，直接加载 `FlagTune/shape-config/<yaml>.yaml`。
 - `--model` 和 `--yaml` 都不传时，默认走 model 模式。
+- 传入 `--master` 时，会额外使用 `master` 分支与当前分支做对比，两侧都使用 default configuration。
+- 传入 `--clear-cache` 时，每次 benchmark 前都会删除 `cache-dir` 指向的 Flaggems cache。
 
 执行流程：
 
 1. model 模式下运行 `FlagTune/processing/shape-gen.py`，从 `FlagTune/shape-config/<model>.txt` 生成 `yaml` 和 `count.yaml`；yaml 模式下跳过这一步。
-2. 对 `mm` / `w8a8_block_fp8_matmul` / `w8a8_block_fp8_matmul_deepgemm` 执行两轮 benchmark：
-   `default configuration` 和 `expand configuration`。
+2. 对任意 `--op` 执行两轮 benchmark：
+   默认模式下为 `default configuration` 和 `expand configuration`；
+   `--master` 模式下为 `master` 和当前分支名，两侧都使用 default configuration。
 3. benchmark 使用：
 
 ```bash
@@ -107,6 +111,12 @@ pytest benchmark/test_blas_perf_parallel.py \
 # 直接使用已有 yaml，不再执行 shape-gen.py
 ./FlagTune/scripts/pretune.sh --yaml Qwen3.5-35B-A3B-p32768d1024_default_bad_case --op mm
 
+# 对比 master 分支和当前分支
+./FlagTune/scripts/pretune.sh --yaml Qwen3.5-35B-A3B-p32768d1024_default_bad_case --master --op w8a8_block_fp8_matmul
+
+# 对比 master 分支和当前分支，并在每轮 benchmark 前清理 cache
+./FlagTune/scripts/pretune.sh --model Qwen3.5-35B-A3B-p32768d1024 --op w8a8_block_fp8_matmul --master --clear-cache
+
 # 调整 warmup 和并行卡数
 ./FlagTune/scripts/pretune.sh --warmup 200 --parallel 4
 
@@ -131,6 +141,12 @@ pytest benchmark/test_blas_perf_parallel.py \
   - 输入 yaml 会被直接使用，例如 `FlagTune/shape-config/<yaml>.yaml`
   - 输出报告与日志路径中的名字使用 `<yaml>`
   - 如果不存在 `FlagTune/shape-config/<yaml>_count.yaml`，则 report 中 `Count=1`
+- `--master` 模式：
+  - 使用临时 `git worktree` 在 `master` 分支执行 benchmark，避免切换当前工作区分支
+  - report 中左侧列名为 `master`，右侧列名为当前分支名
+  - 输出报告文件会增加 `_master` 后缀，例如 `FlagTune/reports/<name>_<op>_master.md`
+- `--clear-cache` 模式：
+  - 每次 `run_mm_benchmark` 执行前都会删除 `--cache-dir` 指向的缓存目录
 
 ## 批量 pretune
 
@@ -177,6 +193,7 @@ pytest benchmark/test_blas_perf_parallel.py \
   - `FlagTune/reports/<model>_<op>.xlsx`
   - `FlagTune/shape-config/<model>_gain.yaml`
   - `FlagTune/shape-config/<model>_lose.yaml`
+- 传入 `--output-suffix _master` 等参数时，报告文件名会附加对应后缀
 - 当 `*_count.yaml` 缺失时：
   - Markdown / Excel report 仍会生成
   - `Count` 列回退为 `1`
