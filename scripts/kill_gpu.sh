@@ -29,6 +29,16 @@ require_cmd() {
   fi
 }
 
+get_pid_stat() {
+  local pid="$1"
+  ps -o stat= -p "$pid" 2>/dev/null | awk 'NR == 1 { print $1 }'
+}
+
+get_pid_wchan() {
+  local pid="$1"
+  ps -o wchan= -p "$pid" 2>/dev/null | awk 'NR == 1 { print $1 }'
+}
+
 collect_gpu_pids() {
   case "$gpu_tool" in
     nvidia-smi)
@@ -133,6 +143,7 @@ fi
 require_cmd awk
 require_cmd sort
 require_cmd kill
+require_cmd ps
 gpu_tool="$(detect_gpu_tool)"
 
 echo "Detected GPU tool: ${gpu_tool}"
@@ -156,7 +167,7 @@ fi
 
 for pid in $pids; do
   if kill "$signal_opt" "$pid" 2>/dev/null; then
-    echo "Killed PID ${pid} with signal ${signal_opt}"
+    echo "Sent signal ${signal_opt} to PID ${pid}"
   else
     echo "Warning: failed to kill PID ${pid}" >&2
   fi
@@ -169,6 +180,19 @@ if [[ -z "${remaining}" ]]; then
   echo "All GPU compute processes were cleared."
 else
   echo "Remaining GPU compute PIDs: ${remaining}"
+  for pid in $remaining; do
+    if kill -0 "$pid" 2>/dev/null; then
+      stat="$(get_pid_stat "$pid")"
+      wchan="$(get_pid_wchan "$pid")"
+      if [[ "${stat}" == D* ]]; then
+        echo "Warning: PID ${pid} is stuck in uninterruptible sleep (STAT=${stat}, WCHAN=${wchan:-unknown}). SIGKILL cannot remove it until the kernel/driver wait completes." >&2
+      else
+        echo "Warning: PID ${pid} is still alive after signal ${signal_opt} (STAT=${stat:-unknown}, WCHAN=${wchan:-unknown})." >&2
+      fi
+    else
+      echo "Warning: PID ${pid} is no longer alive, but it is still reported by ${gpu_tool}. The vendor tool output may be stale." >&2
+    fi
+  done
   echo "Remaining process details:"
   show_gpu_processes
 fi
