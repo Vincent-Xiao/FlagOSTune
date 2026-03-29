@@ -10,11 +10,13 @@ Supported tools: nvidia-smi, mthreads-gmi.
 
 Options:
   -n, --dry-run         Show matching PIDs but do not kill
+  -g, --gpus COUNT      Only target the first COUNT GPUs (default: 8)
   -s, --signal SIGNAL   Signal passed to kill (default: -9)
   -h, --help            Show this help
 
 Examples:
   ./flagtune/kill-gpu.sh
+  ./flagtune/kill-gpu.sh --gpus 4
   ./flagtune/kill-gpu.sh --dry-run
   ./flagtune/kill-gpu.sh --signal -15
 EOF
@@ -30,13 +32,24 @@ require_cmd() {
 collect_gpu_pids() {
   case "$gpu_tool" in
     nvidia-smi)
-      nvidia-smi --query-compute-apps=pid --format=csv,noheader,nounits 2>/dev/null \
-        | awk 'NF { print $1 }' \
+      awk -F', *' -v limit="$gpu_count" '
+        NR == FNR {
+          if ($1 ~ /^[0-9]+$/ && $1 < limit) {
+            target[$2] = 1
+          }
+          next
+        }
+        target[$1] && $2 ~ /^[0-9]+$/ {
+          print $2
+        }
+      ' \
+        <(nvidia-smi --query-gpu=index,uuid --format=csv,noheader,nounits 2>/dev/null) \
+        <(nvidia-smi --query-compute-apps=gpu_uuid,pid --format=csv,noheader,nounits 2>/dev/null) \
         | sort -u
       ;;
     mthreads-gmi)
       mthreads-gmi -pm 2>/dev/null \
-        | awk '$1 ~ /^[0-9]+$/ && $2 ~ /^[0-9]+$/ { print $2 }' \
+        | awk -v limit="$gpu_count" '$1 ~ /^[0-9]+$/ && $1 < limit && $2 ~ /^[0-9]+$/ { print $2 }' \
         | sort -u
       ;;
     *)
@@ -75,12 +88,21 @@ detect_gpu_tool() {
 }
 
 dry_run=0
+gpu_count=8
 signal_opt="-9"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     -n|--dry-run)
       dry_run=1
+      ;;
+    -g|--gpus)
+      if [[ $# -lt 2 ]]; then
+        echo "Error: --gpus requires a value" >&2
+        exit 1
+      fi
+      gpu_count="$2"
+      shift
       ;;
     -s|--signal)
       if [[ $# -lt 2 ]]; then
@@ -103,12 +125,18 @@ while [[ $# -gt 0 ]]; do
   shift
 done
 
+if ! [[ "$gpu_count" =~ ^[0-9]+$ ]] || [[ "$gpu_count" -le 0 ]]; then
+  echo "Error: --gpus must be a positive integer" >&2
+  exit 1
+fi
+
 require_cmd awk
 require_cmd sort
 require_cmd kill
 gpu_tool="$(detect_gpu_tool)"
 
 echo "Detected GPU tool: ${gpu_tool}"
+echo "Target GPU range: [0, $((gpu_count - 1))]"
 echo "Current GPU compute processes:"
 show_gpu_processes
 
