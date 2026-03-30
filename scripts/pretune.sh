@@ -15,7 +15,7 @@ CLEAR_CACHE=false
 OP="mm"
 CACHE_DIR="/root/.flaggems"
 DTYPES="bfloat16"
-WARMUP=100
+WARMUP=1000
 PARALLEL=8
 
 while [[ $# -gt 0 ]]; do
@@ -79,10 +79,10 @@ while [[ $# -gt 0 ]]; do
       echo "  - op: mm"
       echo "  - cache-dir: /root/.flaggems"
       echo "  - dtypes: bfloat16"
-      echo "  - warmup: 100"
+      echo "  - warmup: 1000"
       echo "  - parallel: 8"
       echo "  - branch: master"
-      echo "Default run: $0 --model Qwen3.5-35B-A3B-p32768d1024 --op mm --cache-dir /root/.flaggems --dtypes bfloat16 --warmup 100 --parallel 8"
+      echo "Default run: $0 --model Qwen3.5-35B-A3B-p32768d1024 --op mm --cache-dir /root/.flaggems --dtypes bfloat16 --warmup 1000 --parallel 8"
       echo "Example 1: $0 --model Qwen3.5-35B-A3B-p32768d1024 --op mm"
       echo "Example 2: $0 --yaml Qwen3.5-35B-A3B-p32768d1024 --op mm"
       echo "Example 3: $0 --yaml Qwen3.5-35B-A3B-p32768d1024 --branch --op w8a8_block_fp8_matmul"

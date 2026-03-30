@@ -70,7 +70,7 @@ FlagTune/shape-config/Qwen3.5-35B-A3B-p32768d1024.txt
 - `--op mm`
 - `--cache-dir /root/.flaggems`
 - `--dtypes bfloat16`
-- `--warmup 100`
+- `--warmup 1000`
 - `--parallel 8`
 
 参数行为：
