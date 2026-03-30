@@ -9,7 +9,8 @@ MODEL="Qwen3.5-35B-A3B-p32768d1024"
 YAML_NAME="Qwen3.5-35B-A3B-p32768d1024"
 MODEL_SPECIFIED=false
 YAML_SPECIFIED=false
-MASTER_COMPARE=false
+BRANCH_COMPARE=false
+COMPARE_BRANCH="master"
 CLEAR_CACHE=false
 OP="mm"
 CACHE_DIR="/root/.flaggems"
@@ -29,9 +30,14 @@ while [[ $# -gt 0 ]]; do
       YAML_SPECIFIED=true
       shift 2
       ;;
-    --master)
-      MASTER_COMPARE=true
-      shift 1
+    --branch)
+      BRANCH_COMPARE=true
+      if [[ $# -gt 1 && "$2" != --* ]]; then
+        COMPARE_BRANCH="$2"
+        shift 2
+      else
+        shift 1
+      fi
       ;;
     --clear-cache)
       CLEAR_CACHE=true
@@ -58,12 +64,14 @@ while [[ $# -gt 0 ]]; do
       shift 2
       ;;
     -h|--help)
-      echo "Usage: $0 [--model <model_name>] [--yaml <yaml_name>] [--master] [--clear-cache] [--op <op_name>] [--cache-dir <dir>] [--dtypes <dtype_list>] [--warmup <count>] [--parallel <count>]"
+      echo "Usage: $0 [--model <model_name>] [--yaml <yaml_name>] [--branch [branch_name]] [--clear-cache] [--op <op_name>] [--cache-dir <dir>] [--dtypes <dtype_list>] [--warmup <count>] [--parallel <count>]"
       echo "Behavior:"
       echo "  - If --model is provided, use model mode and run shape-gen.py."
       echo "  - Else if --yaml is provided, use yaml mode and load FlagTune/shape-config/<yaml_name>.yaml directly."
       echo "  - If neither --model nor --yaml is provided, default to model mode."
-      echo "  - If --master is provided, compare master vs current branch using default configuration on both sides."
+      echo "  - If --branch is provided, use git checkout in the current repo to compare the specified branch vs current branch using default configuration on both sides."
+      echo "  - If --branch is provided without a value, the compare branch defaults to master."
+      echo "  - If any git checkout fails, the script exits immediately and prints the git error."
       echo "  - If --clear-cache is provided, delete Flaggems cache before each benchmark run."
       echo "Defaults:"
       echo "  - model: Qwen3.5-35B-A3B-p32768d1024"
@@ -73,10 +81,11 @@ while [[ $# -gt 0 ]]; do
       echo "  - dtypes: bfloat16"
       echo "  - warmup: 100"
       echo "  - parallel: 8"
+      echo "  - branch: master"
       echo "Default run: $0 --model Qwen3.5-35B-A3B-p32768d1024 --op mm --cache-dir /root/.flaggems --dtypes bfloat16 --warmup 100 --parallel 8"
       echo "Example 1: $0 --model Qwen3.5-35B-A3B-p32768d1024 --op mm"
       echo "Example 2: $0 --yaml Qwen3.5-35B-A3B-p32768d1024 --op mm"
-      echo "Example 3: $0 --yaml Qwen3.5-35B-A3B-p32768d1024 --master --op w8a8_block_fp8_matmul"
+      echo "Example 3: $0 --yaml Qwen3.5-35B-A3B-p32768d1024 --branch --op w8a8_block_fp8_matmul"
       echo "Example 4: $0 --model Qwen3.5-35B-A3B-p32768d1024 --clear-cache --op mm"
       exit 0
       ;;
@@ -117,42 +126,10 @@ exec > >(tee -a "$LOG_FILE") 2>&1
 
 cd "$REPO_ROOT"
 
-MASTER_WORKTREE_DIR=""
-
-cleanup_master_worktree() {
-  local exit_code="$1"
-  trap - EXIT
-
-  if [[ -n "$MASTER_WORKTREE_DIR" ]]; then
-    if git worktree list | awk '{print $1}' | grep -Fxq "$MASTER_WORKTREE_DIR"; then
-      echo "[INFO] Removing temporary master worktree: $MASTER_WORKTREE_DIR"
-      git worktree remove --force "$MASTER_WORKTREE_DIR" || true
-    elif [[ -d "$MASTER_WORKTREE_DIR" ]]; then
-      rm -rf "$MASTER_WORKTREE_DIR" || true
-    fi
-  fi
-
-  exit "$exit_code"
-}
-
-trap 'cleanup_master_worktree "$?"' EXIT
-
 run_cmd() {
   echo
   echo "[RUN] $*"
   "$@"
-}
-
-run_cmd_in_dir() {
-  local workdir="$1"
-  shift
-
-  echo
-  echo "[RUN] (cd $workdir && $*)"
-  (
-    cd "$workdir"
-    "$@"
-  )
 }
 
 print_stage_banner() {
@@ -169,8 +146,7 @@ run_mm_benchmark() {
   local stage_name="$1"
   local shape_file="$2"
   local need_clear_cache="${3:-true}"
-  local repo_dir="${4:-$REPO_ROOT}"
-  local use_flagtune="${5:-false}"
+  local use_flagtune="${4:-false}"
   local -a pytest_args=(
     benchmark/test_blas_perf_parallel.py
     -m "$OP"
@@ -193,32 +169,33 @@ run_mm_benchmark() {
   fi
 
   if [[ "${use_flagtune,,}" == "true" ]]; then
-    run_cmd_in_dir "$repo_dir" env USE_FLAGTUNE=1 pytest "${pytest_args[@]}"
+    run_cmd env USE_FLAGTUNE=1 pytest "${pytest_args[@]}"
   else
-    run_cmd_in_dir "$repo_dir" pytest "${pytest_args[@]}"
+    run_cmd pytest "${pytest_args[@]}"
   fi
 }
 
 REPORT_SUFFIX=""
-if [[ "${MASTER_COMPARE,,}" == "true" ]]; then
-  REPORT_SUFFIX="_master"
+if [[ "${BRANCH_COMPARE,,}" == "true" ]]; then
+  REPORT_SUFFIX="_$(echo "$COMPARE_BRANCH" | tr '/ ' '__')"
 fi
 REPORT_MD="$FLAGTUNE_DIR/reports/${RUN_NAME}_${OP}${REPORT_SUFFIX}.md"
 REPORT_XLSX="$FLAGTUNE_DIR/reports/${RUN_NAME}_${OP}${REPORT_SUFFIX}.xlsx"
 REPORT_GENERATED=false
+ORIGINAL_GIT_REF=""
 
-prepare_master_worktree() {
-  local master_ref="master"
+checkout_git_ref() {
+  local target_ref="$1"
 
-  if ! git show-ref --verify --quiet "refs/heads/${master_ref}"; then
-    echo "[ERROR] Git branch not found: ${master_ref}"
+  if ! git rev-parse --verify --quiet "${target_ref}^{commit}" >/dev/null; then
+    echo "[ERROR] Git ref not found: ${target_ref}"
     exit 1
   fi
 
-  MASTER_WORKTREE_DIR="$(mktemp -d /tmp/flagtune-master-bench.XXXXXX)"
-  run_cmd rmdir "$MASTER_WORKTREE_DIR"
-  echo "[INFO] Preparing temporary master worktree: $MASTER_WORKTREE_DIR"
-  run_cmd git worktree add --detach "$MASTER_WORKTREE_DIR" "$master_ref"
+  if ! run_cmd git checkout "$target_ref"; then
+    echo "[ERROR] Failed to checkout ${target_ref}."
+    exit 1
+  fi
 }
 
 get_current_branch_label() {
@@ -230,6 +207,40 @@ get_current_branch_label() {
     echo "HEAD-$(git rev-parse --short HEAD)"
   fi
 }
+
+get_current_git_ref() {
+  local branch_name
+  branch_name="$(git branch --show-current)"
+  if [[ -n "$branch_name" ]]; then
+    echo "$branch_name"
+  else
+    git rev-parse HEAD
+  fi
+}
+
+restore_original_git_ref() {
+  local exit_code="$1"
+  local current_ref=""
+
+  trap - EXIT
+
+  if [[ -n "$ORIGINAL_GIT_REF" ]]; then
+    current_ref="$(get_current_git_ref)"
+    if [[ "$current_ref" != "$ORIGINAL_GIT_REF" ]]; then
+      echo "[INFO] Switching back to ${ORIGINAL_GIT_REF}."
+      if ! git checkout "$ORIGINAL_GIT_REF"; then
+        echo "[ERROR] Failed to checkout ${ORIGINAL_GIT_REF}."
+        if [[ "$exit_code" -eq 0 ]]; then
+          exit 1
+        fi
+      fi
+    fi
+  fi
+
+  exit "$exit_code"
+}
+
+trap 'restore_original_git_ref "$?"' EXIT
 
 echo "[INFO] Flagtune started."
 
@@ -245,25 +256,29 @@ if [[ ! -f "$SHAPE_FILE" ]]; then
   exit 1
 fi
 
-if [[ "${MASTER_COMPARE,,}" == "true" ]]; then
+if [[ "${BRANCH_COMPARE,,}" == "true" ]]; then
   CURRENT_BRANCH_LABEL="$(get_current_branch_label)"
-  echo "[INFO] Using --master mode: comparing master vs ${CURRENT_BRANCH_LABEL}."
-  prepare_master_worktree
-  run_mm_benchmark "master" "$SHAPE_FILE" "$CLEAR_CACHE" "$MASTER_WORKTREE_DIR" false
-  run_mm_benchmark "$CURRENT_BRANCH_LABEL" "$SHAPE_FILE" "$CLEAR_CACHE" "$REPO_ROOT" false
+  ORIGINAL_GIT_REF="$(get_current_git_ref)"
+  echo "[INFO] Using --branch mode: comparing ${COMPARE_BRANCH} vs ${CURRENT_BRANCH_LABEL}."
+  checkout_git_ref "$COMPARE_BRANCH"
+  run_mm_benchmark "$COMPARE_BRANCH" "$SHAPE_FILE" "$CLEAR_CACHE" false
+  if [[ "$ORIGINAL_GIT_REF" != "$COMPARE_BRANCH" ]]; then
+    checkout_git_ref "$ORIGINAL_GIT_REF"
+  fi
+  run_mm_benchmark "$CURRENT_BRANCH_LABEL" "$SHAPE_FILE" "$CLEAR_CACHE" false
 
   echo "[INFO] Generating pretune report."
   run_cmd python3 "$FLAGTUNE_DIR/processing/summary.py" \
     --model "$RUN_NAME" \
     --op "$OP" \
     --output-suffix "$REPORT_SUFFIX" \
-    --left-stage-label "master" \
+    --left-stage-label "$COMPARE_BRANCH" \
     --right-stage-label "$CURRENT_BRANCH_LABEL" \
-    --left-report-label "master" \
+    --left-report-label "$COMPARE_BRANCH" \
     --right-report-label "$CURRENT_BRANCH_LABEL"
 else
-  run_mm_benchmark "default" "$SHAPE_FILE" "$CLEAR_CACHE" "$REPO_ROOT" false
-  run_mm_benchmark "expand" "$SHAPE_FILE" "$CLEAR_CACHE" "$REPO_ROOT" true
+  run_mm_benchmark "default" "$SHAPE_FILE" "$CLEAR_CACHE" false
+  run_mm_benchmark "expand" "$SHAPE_FILE" "$CLEAR_CACHE" true
 
   echo "[INFO] Generating pretune report."
   run_cmd python3 "$FLAGTUNE_DIR/processing/summary.py" --model "$RUN_NAME" --op "$OP" --output-suffix "$REPORT_SUFFIX"
