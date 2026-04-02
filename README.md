@@ -159,7 +159,7 @@ pytest benchmark/test_blas_perf_parallel.py \
 ## 批量 pretune
 
 批量脚本会遍历 `FlagTune/shape-config/` 下所有 `*.txt`，逐个调用 `pretune.sh --model`。
-批量模式只使用 `--model`，不会使用 `--yaml`。
+批量模式只使用 `--model`，不会使用 `--yaml`，并且默认总是透传 `--clear-cache`。
 
 ```bash
 ./FlagTune/scripts/pretune_batch.sh
@@ -172,6 +172,19 @@ pytest benchmark/test_blas_perf_parallel.py \
 - `--dtypes`
 - `--warmup`
 - `--parallel`
+
+当前默认参数：
+
+- `--op mm`
+- `--cache-dir /root/.flaggems`
+- `--dtypes bfloat16`
+- `--warmup 1000`
+- `--parallel 8`
+
+批量模式行为：
+
+- 每个模型都会以 `pretune.sh --model <model> --clear-cache ...` 的形式执行。
+- 也就是说，即使 `pretune_batch.sh` 本身没有 `--clear-cache` 选项，它仍会在内部默认清理 cache。
 
 示例：
 

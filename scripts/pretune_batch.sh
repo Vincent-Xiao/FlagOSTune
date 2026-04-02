@@ -8,7 +8,7 @@ PRETUNE_SCRIPT="$SCRIPT_DIR/pretune.sh"
 OP="mm"
 CACHE_DIR="/root/.flaggems"
 DTYPES="bfloat16"
-WARMUP=100
+WARMUP=1000
 PARALLEL=8
 
 while [[ $# -gt 0 ]]; do
@@ -35,10 +35,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     -h|--help)
       echo "Usage: $0 [--op <op_name>] [--cache-dir <dir>] [--dtypes <dtype_list>] [--warmup <count>] [--parallel <count>]"
-      echo "Behavior: this batch script only uses --model mode and never passes --yaml to pretune.sh."
+      echo "Behavior: this batch script only uses --model mode, always passes --clear-cache, and never passes --yaml to pretune.sh."
       echo "Source: it scans FlagTune/shape-config/*.txt and converts each filename to a model name."
-      echo "Default: $0 --op mm --cache-dir /root/.flaggems --dtypes bfloat16 --warmup 100 --parallel 8"
-      echo "Example: $0 --op mm --cache-dir /root/.flaggems --dtypes bfloat16 --warmup 100 --parallel 8"
+      echo "Default: $0 --op mm --cache-dir /root/.flaggems --dtypes bfloat16 --warmup 1000 --parallel 8"
+      echo "Example: $0 --op mm --cache-dir /root/.flaggems --dtypes bfloat16 --warmup 1000 --parallel 8"
       exit 0
       ;;
     *)
@@ -74,7 +74,7 @@ index=0
 failed=0
 
 echo "[INFO] Found $total model definition files."
-echo "[INFO] Batch mode uses pretune.sh --model only."
+echo "[INFO] Batch mode uses pretune.sh --model with --clear-cache."
 
 for file in "${model_files[@]}"; do
   index=$((index + 1))
@@ -83,7 +83,7 @@ for file in "${model_files[@]}"; do
 
   echo
   echo "[INFO] [$index/$total] Running pretune for model: $model"
-  if ! "$PRETUNE_SCRIPT" --model "$model" --op "$OP" --cache-dir "$CACHE_DIR" --dtypes "$DTYPES" --warmup "$WARMUP" --parallel "$PARALLEL"; then
+  if ! "$PRETUNE_SCRIPT" --model "$model" --clear-cache --op "$OP" --cache-dir "$CACHE_DIR" --dtypes "$DTYPES" --warmup "$WARMUP" --parallel "$PARALLEL"; then
     failed=$((failed + 1))
     echo "[ERROR] pretune failed for model: $model"
   fi
