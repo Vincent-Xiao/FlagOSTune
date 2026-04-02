@@ -4,8 +4,8 @@
 !README.md
 !shape-config/*.txt
 !shape-config/**/*.txt
-!shape-config/*.yaml
-!shape-config/**/*.yaml
+shape-config/*.yaml
+shape-config/**/*.yaml
 shape-config/*_gain.yaml
 shape-config/**/*_gain.yaml
 shape-config/*_lose.yaml
