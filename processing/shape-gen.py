@@ -155,6 +155,25 @@ def filter_by_op(
     return filtered
 
 
+def filter_by_n_eq_1(
+    grouped_shapes: OrderedDict[str, list[list[int]]], *, is_n_eq_1: bool
+) -> OrderedDict[str, list[list[int]]]:
+    filtered: OrderedDict[str, list[list[int]]] = OrderedDict()
+
+    for op_name, shapes in grouped_shapes.items():
+        matched_shapes = []
+        for shape in shapes:
+            if len(shape) < 3:
+                continue
+            if (shape[2] == 1) == is_n_eq_1:
+                matched_shapes.append(shape)
+
+        if matched_shapes:
+            filtered[op_name] = matched_shapes
+
+    return filtered
+
+
 def dump_shapes_yaml(
     grouped_shapes: OrderedDict[str, list[list[int]]], output_path: Path, include_count: bool = True
 ) -> None:
@@ -194,6 +213,11 @@ def main() -> None:
         default=None,
         help="Optional operator name filter (e.g. mm)",
     )
+    parser.add_argument(
+        "--split1",
+        action="store_true",
+        help="Also generate split YAML files for shapes with N=1 and N!=1",
+    )
     args = parser.parse_args()
 
     flagtune_dir = Path(__file__).resolve().parent.parent
@@ -220,11 +244,25 @@ def main() -> None:
     grouped_shapes_no_count = filter_by_op(grouped_shapes_no_count, args.op)
     dump_shapes_yaml(grouped_shapes_no_count, output_path, include_count=False)
 
+    extra_output_paths: list[Path] = []
+    if args.split1:
+        split_eq_1_path = output_path.with_name(f"{output_path.stem}-N=1.yaml")
+        split_ne_1_path = output_path.with_name(f"{output_path.stem}-N!=1.yaml")
+
+        grouped_shapes_n_eq_1 = filter_by_n_eq_1(grouped_shapes_no_count, is_n_eq_1=True)
+        grouped_shapes_n_ne_1 = filter_by_n_eq_1(grouped_shapes_no_count, is_n_eq_1=False)
+
+        dump_shapes_yaml(grouped_shapes_n_eq_1, split_eq_1_path, include_count=False)
+        dump_shapes_yaml(grouped_shapes_n_ne_1, split_ne_1_path, include_count=False)
+        extra_output_paths.extend([split_eq_1_path, split_ne_1_path])
+
     grouped_shapes_with_count = build_grouped_shapes(records, include_count=True)
     grouped_shapes_with_count = filter_by_op(grouped_shapes_with_count, args.op)
     dump_shapes_yaml(grouped_shapes_with_count, output_count_path, include_count=True)
 
     print(f"Generated {output_path} from {input_path}")
+    for extra_output_path in extra_output_paths:
+        print(f"Generated {extra_output_path} from {input_path}")
     print(f"Generated {output_count_path} from {input_path}")
     print_operator_summary(grouped_shapes_no_count)
 
