@@ -17,6 +17,7 @@ CACHE_DIR="/root/.flaggems"
 DTYPES="bfloat16"
 WARMUP=1000
 PARALLEL=8
+ENABLE_FLAGTUNE=true
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -63,8 +64,12 @@ while [[ $# -gt 0 ]]; do
       PARALLEL="$2"
       shift 2
       ;;
+    --flagtune)
+      ENABLE_FLAGTUNE="$2"
+      shift 2
+      ;;
     -h|--help)
-      echo "Usage: $0 [--model <model_name>] [--yaml <yaml_name>] [--branch [branch_name]] [--clear-cache] [--op <op_name>] [--cache-dir <dir>] [--dtypes <dtype_list>] [--warmup <count>] [--parallel <count>]"
+      echo "Usage: $0 [--model <model_name>] [--yaml <yaml_name>] [--branch [branch_name]] [--clear-cache] [--op <op_name>] [--cache-dir <dir>] [--dtypes <dtype_list>] [--warmup <count>] [--parallel <count>] [--flagtune <true|false>]"
       echo "Behavior:"
       echo "  - If --model is provided, use model mode and run shape-gen.py."
       echo "  - Else if --yaml is provided, use yaml mode and load FlagTune/shape-config/<yaml_name>.yaml directly."
@@ -73,6 +78,7 @@ while [[ $# -gt 0 ]]; do
       echo "  - If --branch is provided without a value, the compare branch defaults to master."
       echo "  - If any git checkout fails, the script exits immediately and prints the git error."
       echo "  - If --clear-cache is provided, delete Flaggems cache before each benchmark run."
+      echo "  - If --flagtune is false, skip the expand stage that runs with USE_FLAGTUNE=1."
       echo "Defaults:"
       echo "  - model: Qwen3.5-35B-A3B-p32768d1024"
       echo "  - yaml: Qwen3.5-35B-A3B-p32768d1024"
@@ -81,12 +87,14 @@ while [[ $# -gt 0 ]]; do
       echo "  - dtypes: bfloat16"
       echo "  - warmup: 1000"
       echo "  - parallel: 8"
+      echo "  - flagtune: true"
       echo "  - branch: master"
-      echo "Default run: $0 --model Qwen3.5-35B-A3B-p32768d1024 --op mm --cache-dir /root/.flaggems --dtypes bfloat16 --warmup 1000 --parallel 8"
+      echo "Default run: $0 --model Qwen3.5-35B-A3B-p32768d1024 --op mm --cache-dir /root/.flaggems --dtypes bfloat16 --warmup 1000 --parallel 8 --flagtune true"
       echo "Example 1: $0 --model Qwen3.5-35B-A3B-p32768d1024 --op mm"
       echo "Example 2: $0 --yaml Qwen3.5-35B-A3B-p32768d1024 --op mm"
       echo "Example 3: $0 --yaml Qwen3.5-35B-A3B-p32768d1024 --branch --op w8a8_block_fp8_matmul"
       echo "Example 4: $0 --model Qwen3.5-35B-A3B-p32768d1024 --clear-cache --op mm"
+      echo "Example 5: $0 --model Qwen3.5-35B-A3B-p32768d1024 --op mm --flagtune false"
       exit 0
       ;;
     *)
@@ -95,6 +103,11 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
+
+if [[ "${ENABLE_FLAGTUNE,,}" != "true" && "${ENABLE_FLAGTUNE,,}" != "false" ]]; then
+  echo "[ERROR] Invalid value for --flagtune: ${ENABLE_FLAGTUNE}. Expected true or false."
+  exit 1
+fi
 
 YAML_NAME="${YAML_NAME%.yaml}"
 SHAPE_CONFIG_DIR="$FLAGTUNE_DIR/shape-config"
@@ -278,10 +291,18 @@ if [[ "${BRANCH_COMPARE,,}" == "true" ]]; then
     --right-report-label "$CURRENT_BRANCH_LABEL"
 else
   run_mm_benchmark "default" "$SHAPE_FILE" "$CLEAR_CACHE" false
-  run_mm_benchmark "expand" "$SHAPE_FILE" "$CLEAR_CACHE" true
+  if [[ "${ENABLE_FLAGTUNE,,}" == "true" ]]; then
+    run_mm_benchmark "expand" "$SHAPE_FILE" "$CLEAR_CACHE" true
+  else
+    echo "[INFO] Skipping expand stage because --flagtune is set to false."
+  fi
 
   echo "[INFO] Generating pretune report."
-  run_cmd python3 "$FLAGTUNE_DIR/processing/summary.py" --model "$RUN_NAME" --op "$OP" --output-suffix "$REPORT_SUFFIX"
+  run_cmd python3 "$FLAGTUNE_DIR/processing/summary.py" \
+    --model "$RUN_NAME" \
+    --op "$OP" \
+    --output-suffix "$REPORT_SUFFIX" \
+    --include-right-comparison "$ENABLE_FLAGTUNE"
 fi
 
 REPORT_GENERATED=true

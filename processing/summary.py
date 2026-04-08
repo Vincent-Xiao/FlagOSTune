@@ -21,6 +21,7 @@ TORCH_SIZE_RE = re.compile(r"torch\.Size\(\[(?P<dims>[^\]]+)\]\)")
 
 OP_SHAPE_SOURCE_MAP = {
     "w8a8_block_fp8_matmul": "mm",
+    "w8a8_block_fp8_matmul_fp8": "w8a8_block_fp8_matmul",
     "w8a8_block_fp8_matmul_deepgemm": "mm",
 }
 
@@ -35,6 +36,18 @@ TABLE_HEADERS = [
     "Gems Speedup with right configuration",
     "Speedup Gain",
 ]
+
+COMPARISON_TABLE_TITLE = "Sorted by Speedup Gain"
+SINGLE_CONFIG_TABLE_TITLE = "Performance Summary"
+
+
+def parse_bool_arg(value: str) -> bool:
+    normalized = value.strip().lower()
+    if normalized in {"1", "true", "yes", "y", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "n", "off"}:
+        return False
+    raise argparse.ArgumentTypeError(f"Invalid boolean value: {value}")
 
 
 def parse_count_map(count_yaml_path: Path, target_op: str) -> dict[tuple[int, int, int, int], int]:
@@ -235,6 +248,7 @@ def split_and_write_gain_lose_yaml(
     lose_yaml_path: Path,
     op: str,
     rows_by_gain: list[list[str]],
+    include_right_comparison: bool = True,
 ) -> tuple[int, int]:
     source_blocks = parse_model_yaml(model_yaml_path)
     shape_to_gain: dict[tuple[int, int, int, int], float] = {}
@@ -242,7 +256,7 @@ def split_and_write_gain_lose_yaml(
 
     for row in rows_by_gain:
         shape_text = row[0]
-        gain_text = row[8]
+        score_text = row[8] if include_right_comparison else row[4]
         parts = [part.strip() for part in shape_text.split(",")]
         if len(parts) != 4:
             continue
@@ -250,7 +264,13 @@ def split_and_write_gain_lose_yaml(
             key = tuple(int(part) for part in parts)
         except ValueError:
             continue
-        shape_to_gain[key] = parse_gain_value(gain_text)
+        if include_right_comparison:
+            shape_to_gain[key] = parse_gain_value(score_text)
+        else:
+            try:
+                shape_to_gain[key] = float(score_text)
+            except ValueError:
+                shape_to_gain[key] = float("-inf")
 
     gain_blocks: list[dict[str, object]] = []
     lose_blocks: list[dict[str, object]] = []
@@ -275,7 +295,12 @@ def split_and_write_gain_lose_yaml(
                 continue
             key = (shape[0], shape[1], shape[2], shape[3])
             gain_value = shape_to_gain.get(key, float("-inf"))
-            if gain_value > 0:
+            if include_right_comparison:
+                is_gain_shape = gain_value > 0
+            else:
+                is_gain_shape = gain_value >= 1.0
+
+            if is_gain_shape:
                 gain_shapes.append(shape.copy())
                 gain_count += 1
             else:
@@ -296,15 +321,24 @@ def append_table(
     rows: list[list[str]],
     left_report_label: str,
     right_report_label: str,
+    include_right_comparison: bool,
 ) -> None:
     lines.append(f"## {title}")
     lines.append("")
-    lines.append(f"| Shape (B, M, N, K) | Count | {left_report_label} |  |  | {right_report_label} |  |  | Speedup Gain |")
-    lines.append("| --- | --- | --- | --- | --- | --- | --- | --- | --- |")
-    lines.append(
-        f"|  |  | Torch Latency (ms) | Gems Latency (ms) | Gems Speedup | "
-        f"Torch Latency (ms) | Gems Latency (ms) | Gems Speedup | {right_report_label} vs {left_report_label} |"
-    )
+    if include_right_comparison:
+        lines.append(
+            f"| Shape (B, M, N, K) | Count | {left_report_label} |  |  | "
+            f"{right_report_label} |  |  | Speedup Gain |"
+        )
+        lines.append("| --- | --- | --- | --- | --- | --- | --- | --- | --- |")
+        lines.append(
+            f"|  |  | Torch Latency (ms) | Gems Latency (ms) | Gems Speedup | "
+            f"Torch Latency (ms) | Gems Latency (ms) | Gems Speedup | {right_report_label} vs {left_report_label} |"
+        )
+    else:
+        lines.append(f"| Shape (B, M, N, K) | Count | {left_report_label} |  |  |")
+        lines.append("| --- | --- | --- | --- | --- |")
+        lines.append("|  |  | Torch Latency (ms) | Gems Latency (ms) | Gems Speedup |")
     for row in rows:
         lines.append("| " + " | ".join(row) + " |")
     lines.append("")
@@ -315,30 +349,26 @@ def build_table_rows(
     shape_order: list[str],
     count_map: dict[tuple[int, int, int, int], int],
     default_count: int | str = "-",
+    include_right_comparison: bool = True,
 ) -> tuple[list[list[str]], list[list[str]]]:
     table_rows: list[list[str]] = []
 
     for shape in shape_order:
         left_metrics = sections["left"].get(shape, ("-", "-", "-"))
-        right_metrics = sections["right"].get(shape, ("-", "-", "-"))
-
         shape_bmnk, count = convert_shape_to_bmnk_and_count(shape, count_map, default_count)
-        gain = calc_gain_percent(left_metrics[2], right_metrics[2])
+        row = [shape_bmnk, count, left_metrics[0], left_metrics[1], left_metrics[2]]
 
-        row = [
-            shape_bmnk,
-            count,
-            left_metrics[0],
-            left_metrics[1],
-            left_metrics[2],
-            right_metrics[0],
-            right_metrics[1],
-            right_metrics[2],
-            gain,
-        ]
+        if include_right_comparison:
+            right_metrics = sections["right"].get(shape, ("-", "-", "-"))
+            gain = calc_gain_percent(left_metrics[2], right_metrics[2])
+            row.extend([right_metrics[0], right_metrics[1], right_metrics[2], gain])
+
         table_rows.append(row)
 
-    rows_by_gain = sorted(table_rows, key=lambda row: parse_gain_value(row[8]), reverse=True)
+    if include_right_comparison:
+        rows_by_gain = sorted(table_rows, key=lambda row: parse_gain_value(row[8]), reverse=True)
+    else:
+        rows_by_gain = table_rows.copy()
     rows_by_count = sorted(table_rows, key=lambda row: parse_count_value(row[1]), reverse=True)
     return rows_by_gain, rows_by_count
 
@@ -349,6 +379,7 @@ def write_excel_report(
     rows_by_count: list[list[str]],
     left_report_label: str,
     right_report_label: str,
+    include_right_comparison: bool = True,
     include_count_sheet: bool = True,
 ) -> None:
     def style_sheet(ws) -> None:
@@ -375,34 +406,54 @@ def write_excel_report(
             ws.column_dimensions[column_letter].width = adjusted_width
 
     def write_sheet(ws, rows: list[list[str]]) -> None:
-        ws.append([
-            "Shape (B, M, N, K)",
-            "Count",
-            left_report_label,
-            "",
-            "",
-            right_report_label,
-            "",
-            "",
-            "Speedup Gain",
-        ])
-        ws.append([
-            "",
-            "",
-            "Torch Latency (ms)",
-            "Gems Latency (ms)",
-            "Gems Speedup",
-            "Torch Latency (ms)",
-            "Gems Latency (ms)",
-            "Gems Speedup",
-            f"{right_report_label} vs {left_report_label}",
-        ])
+        if include_right_comparison:
+            ws.append([
+                "Shape (B, M, N, K)",
+                "Count",
+                left_report_label,
+                "",
+                "",
+                right_report_label,
+                "",
+                "",
+                "Speedup Gain",
+            ])
+            ws.append([
+                "",
+                "",
+                "Torch Latency (ms)",
+                "Gems Latency (ms)",
+                "Gems Speedup",
+                "Torch Latency (ms)",
+                "Gems Latency (ms)",
+                "Gems Speedup",
+                f"{right_report_label} vs {left_report_label}",
+            ])
 
-        ws.merge_cells("A1:A2")
-        ws.merge_cells("B1:B2")
-        ws.merge_cells("C1:E1")
-        ws.merge_cells("F1:H1")
-        ws.merge_cells("I1:I2")
+            ws.merge_cells("A1:A2")
+            ws.merge_cells("B1:B2")
+            ws.merge_cells("C1:E1")
+            ws.merge_cells("F1:H1")
+            ws.merge_cells("I1:I2")
+        else:
+            ws.append([
+                "Shape (B, M, N, K)",
+                "Count",
+                left_report_label,
+                "",
+                "",
+            ])
+            ws.append([
+                "",
+                "",
+                "Torch Latency (ms)",
+                "Gems Latency (ms)",
+                "Gems Speedup",
+            ])
+
+            ws.merge_cells("A1:A2")
+            ws.merge_cells("B1:B2")
+            ws.merge_cells("C1:E1")
 
         for row in rows:
             ws.append(row)
@@ -412,7 +463,7 @@ def write_excel_report(
     workbook = Workbook()
 
     ws_gain = workbook.active
-    ws_gain.title = "Sorted by Speedup Gain"
+    ws_gain.title = COMPARISON_TABLE_TITLE if include_right_comparison else SINGLE_CONFIG_TABLE_TITLE
     write_sheet(ws_gain, rows_by_gain)
 
     if include_count_sheet:
@@ -471,12 +522,16 @@ def build_report_content(
     count_yaml_exists: bool,
     left_report_label: str,
     right_report_label: str,
+    include_right_comparison: bool,
 ) -> str:
     lines: list[str] = []
     lines.append(f"# Performance Summary: {model} / {op}")
     lines.append("")
     lines.append(f"- Source log: `log/flagtune/{model}/{op}/pretune/pretune.log`")
-    lines.append(f"- Compare: `{left_report_label}` vs `{right_report_label}`")
+    if include_right_comparison:
+        lines.append(f"- Compare: `{left_report_label}` vs `{right_report_label}`")
+    else:
+        lines.append(f"- Configuration: `{left_report_label}`")
     if count_yaml_exists:
         lines.append(f"- Count reference: `FlagTune/shape-config/{model}_count.yaml`")
     else:
@@ -484,9 +539,24 @@ def build_report_content(
     lines.append(f"- Rows: {len(rows_by_gain)}")
     lines.append("")
 
-    append_table(lines, "Sorted by Speedup Gain", rows_by_gain, left_report_label, right_report_label)
+    primary_title = COMPARISON_TABLE_TITLE if include_right_comparison else SINGLE_CONFIG_TABLE_TITLE
+    append_table(
+        lines,
+        primary_title,
+        rows_by_gain,
+        left_report_label,
+        right_report_label,
+        include_right_comparison,
+    )
     if count_yaml_exists:
-        append_table(lines, "Sorted by Count", rows_by_count, left_report_label, right_report_label)
+        append_table(
+            lines,
+            "Sorted by Count",
+            rows_by_count,
+            left_report_label,
+            right_report_label,
+            include_right_comparison,
+        )
 
     lines.append("")
     return "\n".join(lines)
@@ -504,6 +574,12 @@ def main() -> None:
     parser.add_argument("--right-stage-label", default="expand", help="Log stage name for the right-side comparison")
     parser.add_argument("--left-report-label", default="Default Configuration", help="Report column title for the left-side comparison")
     parser.add_argument("--right-report-label", default="Expand Configuration", help="Report column title for the right-side comparison")
+    parser.add_argument(
+        "--include-right-comparison",
+        type=parse_bool_arg,
+        default=True,
+        help="Whether to include the right-side comparison columns in the report",
+    )
     args = parser.parse_args()
 
     repo_root = Path(__file__).resolve().parent.parent.parent
@@ -528,7 +604,13 @@ def main() -> None:
         raise ValueError("No performance rows were parsed from the log file")
 
     default_count = 1 if not count_yaml_exists else "-"
-    rows_by_gain, rows_by_count = build_table_rows(sections, shape_order, count_map, default_count)
+    rows_by_gain, rows_by_count = build_table_rows(
+        sections,
+        shape_order,
+        count_map,
+        default_count,
+        include_right_comparison=args.include_right_comparison,
+    )
 
     report = build_report_content(
         args.model,
@@ -538,6 +620,7 @@ def main() -> None:
         count_yaml_exists,
         args.left_report_label,
         args.right_report_label,
+        args.include_right_comparison,
     )
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(report, encoding="utf-8")
@@ -547,18 +630,20 @@ def main() -> None:
         rows_by_count,
         args.left_report_label,
         args.right_report_label,
+        include_right_comparison=args.include_right_comparison,
         include_count_sheet=count_yaml_exists,
     )
+
+    print(f"Generated report: {output_path}")
+    print(f"Generated report: {output_xlsx_path}")
     gain_count, lose_count = split_and_write_gain_lose_yaml(
         model_yaml_path,
         gain_yaml_path,
         lose_yaml_path,
         args.op,
         rows_by_gain,
+        include_right_comparison=args.include_right_comparison,
     )
-
-    print(f"Generated report: {output_path}")
-    print(f"Generated report: {output_xlsx_path}")
     print(f"Generated gain yaml: {gain_yaml_path} (shapes={gain_count})")
     print(f"Generated lose yaml: {lose_yaml_path} (shapes={lose_count})")
     print(f"Rows: {len(rows_by_gain)}")
