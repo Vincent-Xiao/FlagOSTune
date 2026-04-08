@@ -159,7 +159,7 @@ run_mm_benchmark() {
     -v
   )
 
-  if [[ "$OP" == "mm" ]]; then
+  if [[ "$OP" != w8a8_block_fp8_matmul* ]]; then
     pytest_args+=(--dtypes "$DTYPES")
   fi
 
