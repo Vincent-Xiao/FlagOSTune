@@ -171,6 +171,13 @@ def parse_count_value(count_text: str) -> int:
         return -1
 
 
+def parse_speedup_value(speedup_text: str) -> float:
+    try:
+        return float(speedup_text)
+    except ValueError:
+        return float("-inf")
+
+
 def parse_model_yaml(model_yaml_path: Path) -> list[dict[str, object]]:
     blocks: list[dict[str, object]] = []
     current_block: dict[str, object] | None = None
@@ -368,7 +375,7 @@ def build_table_rows(
     if include_right_comparison:
         rows_by_gain = sorted(table_rows, key=lambda row: parse_gain_value(row[8]), reverse=True)
     else:
-        rows_by_gain = table_rows.copy()
+        rows_by_gain = sorted(table_rows, key=lambda row: parse_speedup_value(row[4]), reverse=True)
     rows_by_count = sorted(table_rows, key=lambda row: parse_count_value(row[1]), reverse=True)
     return rows_by_gain, rows_by_count
 
