@@ -19,12 +19,6 @@ DATA_LINE_RE = re.compile(
 )
 TORCH_SIZE_RE = re.compile(r"torch\.Size\(\[(?P<dims>[^\]]+)\]\)")
 
-OP_SHAPE_SOURCE_MAP = {
-    "w8a8_block_fp8_matmul": "mm",
-    "w8a8_block_fp8_matmul_fp8": "w8a8_block_fp8_matmul",
-    "w8a8_block_fp8_matmul_deepgemm": "mm",
-}
-
 TABLE_HEADERS = [
     "Shape (B, M, N, K)",
     "Count",
@@ -50,12 +44,18 @@ def parse_bool_arg(value: str) -> bool:
     raise argparse.ArgumentTypeError(f"Invalid boolean value: {value}")
 
 
+def resolve_shape_source_op(op: str) -> str:
+    if op.startswith("w8a8_block_fp8_matmul"):
+        return "w8a8_block_fp8_matmul"
+    return op
+
+
 def parse_count_map(count_yaml_path: Path, target_op: str) -> dict[tuple[int, int, int, int], int]:
     count_map: dict[tuple[int, int, int, int], int] = {}
     current_op: str | None = None
     in_shapes = False
     current_shape: list[int] | None = None
-    target_shape_op = OP_SHAPE_SOURCE_MAP.get(target_op, target_op)
+    target_shape_op = resolve_shape_source_op(target_op)
 
     with count_yaml_path.open("r", encoding="utf-8", errors="ignore") as file:
         for raw_line in file:
@@ -259,7 +259,7 @@ def split_and_write_gain_lose_yaml(
 ) -> tuple[int, int]:
     source_blocks = parse_model_yaml(model_yaml_path)
     shape_to_gain: dict[tuple[int, int, int, int], float] = {}
-    target_shape_op = OP_SHAPE_SOURCE_MAP.get(op, op)
+    target_shape_op = resolve_shape_source_op(op)
 
     for row in rows_by_gain:
         shape_text = row[0]
