@@ -17,15 +17,23 @@ DEFAULT_SOURCE_YAML = Path(
 )
 OP_TABLE_PATTERNS = {
     "mm_general": {
-        "include_prefix": "mm_kernel_general_",
+        "include_prefixes": ("mm_kernel_general_",),
         "exclude_prefixes": ("mm_kernel_general_host_tma_",),
     },
     "mm_general_tma": {
-        "include_prefix": "mm_kernel_general_host_tma_",
+        "include_prefixes": ("mm_kernel_general_host_tma_",),
         "exclude_prefixes": (),
     },
     "mm_gemv": {
-        "include_prefix": "gemv_kernel_",
+        "include_prefixes": ("gemv_kernel_",),
+        "exclude_prefixes": (),
+    },
+    "w8a8_block_fp8_general": {
+        "include_prefixes": ("w8a8_block_fp8_matmul_kernel_",),
+        "exclude_prefixes": (),
+    },
+    "w8a8_block_fp8_general_tma": {
+        "include_prefixes": ("w8a8_block_fp8_matmul_sqmma_kernel_",),
         "exclude_prefixes": (),
     },
 }
@@ -184,18 +192,22 @@ def get_table_columns(conn: sqlite3.Connection, table_name: str) -> set[str]:
     return {row[1] for row in rows}
 
 
+def is_benchmark_table(table_name: str) -> bool:
+    return "benchmark" in table_name.lower()
+
+
 def find_config_tables(conn: sqlite3.Connection, op_name: str) -> list[str]:
     pattern = OP_TABLE_PATTERNS.get(op_name)
     if pattern is None:
         return []
 
-    include_prefix = pattern["include_prefix"]
+    include_prefixes = pattern["include_prefixes"]
     exclude_prefixes = pattern["exclude_prefixes"]
     matched_tables: list[str] = []
     for table_name in list_tables(conn):
-        if not table_name.startswith(include_prefix):
+        if not any(table_name.startswith(prefix) for prefix in include_prefixes):
             continue
-        if "_benchmark-" in table_name:
+        if is_benchmark_table(table_name):
             continue
         if any(table_name.startswith(prefix) for prefix in exclude_prefixes):
             continue
