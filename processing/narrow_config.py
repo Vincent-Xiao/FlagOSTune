@@ -12,9 +12,6 @@ import yaml
 
 
 DEFAULT_DB_PATH = Path("/root/.flaggems/config_cache")
-DEFAULT_SOURCE_YAML = Path(
-    "src/flag_gems/runtime/backend/_nvidia/hopper/mm_hopper_expand.yaml"
-)
 OP_TABLE_PATTERNS = {
     "mm_general": {
         "include_prefixes": ("mm_kernel_general_",),
@@ -53,8 +50,8 @@ def parse_args() -> argparse.Namespace:
         "--yaml",
         dest="input_yaml",
         type=Path,
-        default=DEFAULT_SOURCE_YAML,
-        help=f"Source expand yaml path (default: {DEFAULT_SOURCE_YAML})",
+        required=True,
+        help="Source expand yaml path",
     )
     return parser.parse_args()
 

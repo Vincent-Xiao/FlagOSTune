@@ -178,6 +178,78 @@ def parse_speedup_value(speedup_text: str) -> float:
         return float("-inf")
 
 
+def parse_percent_value(percent_text: str) -> float:
+    if not percent_text.endswith("%"):
+        raise ValueError(percent_text)
+    return float(percent_text[:-1])
+
+
+def get_summary_column_kinds(include_right_comparison: bool) -> list[str]:
+    if include_right_comparison:
+        return ["label", "count", "latency", "latency", "speedup", "latency", "latency", "speedup", "percent"]
+    return ["label", "count", "latency", "latency", "speedup"]
+
+
+def parse_summary_numeric(kind: str, value_text: str) -> float | None:
+    try:
+        if kind == "count":
+            return float(int(value_text))
+        if kind in {"latency", "speedup"}:
+            return float(value_text)
+        if kind == "percent":
+            return parse_percent_value(value_text)
+    except ValueError:
+        return None
+    return None
+
+
+def format_summary_numeric(kind: str, stat_name: str, value: float) -> str:
+    if kind == "count":
+        if stat_name in {"Min", "Max"}:
+            return str(int(round(value)))
+        return f"{value:.2f}"
+    if kind == "latency":
+        return f"{value:.6f}"
+    if kind == "speedup":
+        return f"{value:.3f}"
+    if kind == "percent":
+        return f"{value:.2f}%"
+    return "-"
+
+
+def append_summary_rows(rows: list[list[str]], include_right_comparison: bool) -> list[list[str]]:
+    if not rows:
+        return rows
+
+    column_kinds = get_summary_column_kinds(include_right_comparison)
+    summary_specs = [
+        ("Min", min),
+        ("Max", max),
+        ("Avg", lambda values: sum(values) / len(values)),
+    ]
+    summary_rows: list[list[str]] = []
+
+    for stat_name, reducer in summary_specs:
+        summary_row = [stat_name]
+        for col_idx in range(1, len(column_kinds)):
+            kind = column_kinds[col_idx]
+            values = [
+                parsed
+                for row in rows
+                if col_idx < len(row)
+                for parsed in [parse_summary_numeric(kind, row[col_idx])]
+                if parsed is not None
+            ]
+            if not values:
+                summary_row.append("-")
+                continue
+            summary_value = reducer(values)
+            summary_row.append(format_summary_numeric(kind, stat_name, summary_value))
+        summary_rows.append(summary_row)
+
+    return rows + summary_rows
+
+
 def parse_model_yaml(model_yaml_path: Path) -> list[dict[str, object]]:
     blocks: list[dict[str, object]] = []
     current_block: dict[str, object] | None = None
@@ -346,7 +418,7 @@ def append_table(
         lines.append(f"| Shape (B, M, N, K) | Count | {left_report_label} |  |  |")
         lines.append("| --- | --- | --- | --- | --- |")
         lines.append("|  |  | Torch Latency (ms) | Gems Latency (ms) | Gems Speedup |")
-    for row in rows:
+    for row in append_summary_rows(rows, include_right_comparison):
         lines.append("| " + " | ".join(row) + " |")
     lines.append("")
 
@@ -462,7 +534,7 @@ def write_excel_report(
             ws.merge_cells("B1:B2")
             ws.merge_cells("C1:E1")
 
-        for row in rows:
+        for row in append_summary_rows(rows, include_right_comparison):
             ws.append(row)
 
         style_sheet(ws)
