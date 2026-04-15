@@ -74,10 +74,11 @@ def resolve_db_path(path: Path) -> Path:
     )
 
 
-def build_output_paths(input_yaml: Path) -> tuple[Path, Path]:
+def build_output_paths(input_yaml: Path) -> tuple[Path, Path, Path]:
     narrow_yaml = input_yaml.with_name(f"{input_yaml.stem}_narrow{input_yaml.suffix}")
     remove_yaml = input_yaml.with_name(f"{input_yaml.stem}_remove{input_yaml.suffix}")
-    return narrow_yaml, remove_yaml
+    count_yaml = input_yaml.with_name(f"{input_yaml.stem}_count{input_yaml.suffix}")
+    return narrow_yaml, remove_yaml, count_yaml
 
 
 def load_yaml(path: Path) -> OrderedDict[str, Any]:
@@ -162,8 +163,7 @@ def write_list(file, values: list[Any], indent: int) -> None:
     for value in values:
         prefix = " " * indent
         if isinstance(value, dict):
-            file.write(f"{prefix}-\n")
-            write_mapping(file, value, indent + 2)
+            write_list_entry(file, value, indent)
         elif isinstance(value, list):
             file.write(f"{prefix}-\n")
             write_list(file, value, indent + 2)
@@ -257,6 +257,23 @@ def query_distinct_values(
     return sorted(values)
 
 
+def query_value_counts(
+    conn: sqlite3.Connection, table_names: list[str], column_name: str
+) -> dict[Any, int]:
+    counts: dict[Any, int] = {}
+    for table_name in table_names:
+        columns = get_table_columns(conn, table_name)
+        if column_name not in columns:
+            continue
+        rows = conn.execute(
+            f'SELECT "{column_name}", COUNT(*) FROM "{table_name}" '
+            f'WHERE "{column_name}" IS NOT NULL GROUP BY "{column_name}"'
+        ).fetchall()
+        for value, count in rows:
+            counts[value] = counts.get(value, 0) + count
+    return counts
+
+
 def ordered_intersection(original_values: list[Any], narrowed_values: list[Any]) -> list[Any]:
     narrowed_set = set(narrowed_values)
     return [value for value in original_values if value in narrowed_set]
@@ -320,6 +337,31 @@ def narrow_config_block(
     }
 
 
+def build_count_config_block(
+    conn: sqlite3.Connection,
+    op_name: str,
+    config_block: dict[str, Any],
+) -> dict[str, Any]:
+    table_names = find_config_tables(conn, op_name)
+    count_config = {
+        key: list(value) if isinstance(value, list) else value
+        for key, value in config_block.items()
+    }
+
+    for column_name, source_name in get_param_sources(config_block).items():
+        original_values = config_block.get(source_name)
+        if not isinstance(original_values, list):
+            continue
+
+        value_counts = query_value_counts(conn, table_names, column_name)
+        count_config[source_name] = [
+            OrderedDict([("value", value), ("count", value_counts.get(value, 0))])
+            for value in original_values
+        ]
+
+    return count_config
+
+
 def build_narrow_yaml(
     conn: sqlite3.Connection,
     source_yaml: OrderedDict[str, Any],
@@ -345,6 +387,31 @@ def build_narrow_yaml(
         output_yaml[op_name] = new_entries
 
     return output_yaml, summaries
+
+
+def build_count_yaml(
+    conn: sqlite3.Connection,
+    source_yaml: OrderedDict[str, Any],
+) -> OrderedDict[str, Any]:
+    count_yaml: OrderedDict[str, Any] = OrderedDict()
+
+    for op_name, entries in source_yaml.items():
+        if not isinstance(entries, list):
+            count_yaml[op_name] = entries
+            continue
+
+        config_block = extract_config_block(entries)
+        counted_config = build_count_config_block(conn, op_name, config_block)
+
+        new_entries: list[dict[str, Any]] = []
+        for entry in entries:
+            if isinstance(entry, dict) and "config" in entry:
+                new_entries.append(counted_config)
+            else:
+                new_entries.append(entry)
+        count_yaml[op_name] = new_entries
+
+    return count_yaml
 
 
 def build_remove_yaml(
@@ -411,19 +478,22 @@ def main() -> None:
     db_path = resolve_db_path(args.db)
     if not args.input_yaml.exists():
         raise FileNotFoundError(f"Input yaml not found: {args.input_yaml}")
-    output_yaml, remove_yaml = build_output_paths(args.input_yaml)
+    output_yaml, remove_yaml, count_yaml = build_output_paths(args.input_yaml)
 
     source_yaml = load_yaml(args.input_yaml)
     with sqlite3.connect(db_path) as conn:
         narrowed_yaml, summaries = build_narrow_yaml(conn, source_yaml)
+        counted_yaml = build_count_yaml(conn, source_yaml)
     removed_yaml = build_remove_yaml(source_yaml, narrowed_yaml)
 
     dump_yaml(output_yaml, narrowed_yaml)
     dump_yaml(remove_yaml, removed_yaml)
+    dump_yaml(count_yaml, counted_yaml)
     print(f"Using autotune DB: {db_path}")
     print_summary(summaries)
     print(f"Wrote narrowed yaml to: {output_yaml}")
     print(f"Wrote removed-values yaml to: {remove_yaml}")
+    print(f"Wrote count yaml to: {count_yaml}")
 
 
 if __name__ == "__main__":
