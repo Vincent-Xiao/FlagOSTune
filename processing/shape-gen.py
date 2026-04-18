@@ -6,6 +6,14 @@ import re
 from collections import OrderedDict
 from pathlib import Path
 
+OP_SHAPE_DESC = {
+    "sparse_attention": "B, M, KV_LEN, TOPK, H, D",
+}
+OP_EXPECTED_DIMS = {
+    "sparse_attention": {6},
+    "w8a8_block_fp8_matmul": {4},
+}
+
 
 def normalize_text(text: str) -> str:
     printable = "".join(ch if ch.isprintable() else " " for ch in text)
@@ -93,6 +101,19 @@ def normalize_shape_for_op(full_op: str, shape: list[int]) -> list[int]:
     return shape
 
 
+def get_expected_dims_for_op(op_key: str) -> set[int] | None:
+    expected_dims = OP_EXPECTED_DIMS.get(op_key)
+    if expected_dims is not None:
+        if isinstance(expected_dims, int):
+            return {expected_dims}
+        return set(expected_dims)
+
+    if "mm" in op_key:
+        return {4}
+
+    return None
+
+
 def collect_sorted_records(input_path: Path) -> list[tuple[str, str, int]]:
     records: dict[tuple[str, str], int] = {}
 
@@ -122,6 +143,10 @@ def build_grouped_shapes(
         # Normalize operator-specific log layouts before dedup/merge. This is
         # especially important for gemv_mm, because it is merged into `mm`.
         shape_key = tuple(normalize_shape_for_op(full_op, parse_shape(raw_shape)))
+        expected_dims = get_expected_dims_for_op(op_key)
+        if expected_dims is not None:
+            if len(shape_key) not in expected_dims:
+                continue
 
         if op_key not in grouped_counts:
             grouped_counts[op_key] = OrderedDict()
@@ -180,6 +205,7 @@ def dump_shapes_yaml(
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with output_path.open("w", encoding="utf-8") as file:
         for op_idx, (op_name, shapes) in enumerate(grouped_shapes.items()):
+            shape_desc = OP_SHAPE_DESC.get(op_name, "B, M, N, K")
             file.write(f"{op_name}:\n")
             file.write("  shapes:\n")
             for shape in shapes:
@@ -188,9 +214,9 @@ def dump_shapes_yaml(
                 for dim in shape[1:]:
                     file.write(f"    - {dim}\n")
             if include_count:
-                file.write("  shape_desc: B, M, N, K, Count\n")
+                file.write(f"  shape_desc: {shape_desc}, Count\n")
             else:
-                file.write("  shape_desc: B, M, N, K\n")
+                file.write(f"  shape_desc: {shape_desc}\n")
             if op_idx != len(grouped_shapes) - 1:
                 file.write("\n")
 
