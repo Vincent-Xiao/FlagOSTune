@@ -33,6 +33,10 @@ OP_TABLE_PATTERNS = {
         "include_prefixes": ("w8a8_block_fp8_matmul_sqmma_kernel_",),
         "exclude_prefixes": (),
     },
+    "sparse_attention": {
+        "include_prefixes": ("sparse_attn_triton_kernel",),
+        "exclude_prefixes": (),
+    },
 }
 
 
