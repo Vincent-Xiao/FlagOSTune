@@ -33,6 +33,9 @@ TABLE_HEADERS = [
 
 COMPARISON_TABLE_TITLE = "Sorted by Speedup Gain"
 SINGLE_CONFIG_TABLE_TITLE = "Performance Summary"
+OP_SHAPE_LABELS = {
+    "sparse_attention": "Shape (B, M, KV_LEN, TOPK, H, D)",
+}
 
 
 def parse_bool_arg(value: str) -> bool:
@@ -50,12 +53,26 @@ def resolve_shape_source_op(op: str) -> str:
     return op
 
 
-def parse_count_map(count_yaml_path: Path, target_op: str) -> dict[tuple[int, int, int, int], int]:
-    count_map: dict[tuple[int, int, int, int], int] = {}
+def get_shape_label(op: str) -> str:
+    return OP_SHAPE_LABELS.get(resolve_shape_source_op(op), "Shape (B, M, N, K)")
+
+
+def parse_count_map(count_yaml_path: Path, target_op: str) -> dict[tuple[int, ...], int]:
+    count_map: dict[tuple[int, ...], int] = {}
     current_op: str | None = None
     in_shapes = False
     current_shape: list[int] | None = None
     target_shape_op = resolve_shape_source_op(target_op)
+
+    def flush_current_shape() -> None:
+        nonlocal current_shape
+        if current_op != target_shape_op or current_shape is None or len(current_shape) < 2:
+            current_shape = None
+            return
+
+        *shape_key, count = current_shape
+        count_map[tuple(shape_key)] = count
+        current_shape = None
 
     with count_yaml_path.open("r", encoding="utf-8", errors="ignore") as file:
         for raw_line in file:
@@ -63,6 +80,7 @@ def parse_count_map(count_yaml_path: Path, target_op: str) -> dict[tuple[int, in
 
             op_match = re.match(r"^([A-Za-z_][A-Za-z0-9_]*)\:$", line)
             if op_match:
+                flush_current_shape()
                 current_op = op_match.group(1)
                 in_shapes = False
                 current_shape = None
@@ -76,6 +94,7 @@ def parse_count_map(count_yaml_path: Path, target_op: str) -> dict[tuple[int, in
                 continue
 
             if line.strip().startswith("shape_desc:"):
+                flush_current_shape()
                 in_shapes = False
                 current_shape = None
                 continue
@@ -84,6 +103,7 @@ def parse_count_map(count_yaml_path: Path, target_op: str) -> dict[tuple[int, in
                 continue
 
             if line.startswith("  - - "):
+                flush_current_shape()
                 first = int(line.split("  - - ", 1)[1].strip())
                 current_shape = [first]
                 continue
@@ -91,10 +111,8 @@ def parse_count_map(count_yaml_path: Path, target_op: str) -> dict[tuple[int, in
             dim_match = re.match(r"^\s*-\s*(\d+)\s*$", line)
             if dim_match and current_shape is not None:
                 current_shape.append(int(dim_match.group(1)))
-                if len(current_shape) == 5:
-                    b, m, n, k, count = current_shape
-                    count_map[(b, m, n, k)] = count
-                    current_shape = None
+
+    flush_current_shape()
 
     return count_map
 
@@ -127,18 +145,50 @@ def infer_bmnk_from_shape_text(shape_text: str) -> tuple[int, int, int, int] | N
     return None
 
 
-def convert_shape_to_bmnk_and_count(
+def infer_sparse_attention_shape_from_text(shape_text: str) -> tuple[int, int, int, int, int, int] | None:
+    sizes: list[tuple[int, ...]] = []
+    for match in TORCH_SIZE_RE.finditer(shape_text):
+        dims = tuple(
+            int(token.strip())
+            for token in match.group("dims").split(",")
+            if token.strip()
+        )
+        sizes.append(dims)
+
+    if len(sizes) < 4:
+        return None
+
+    query_shape, kv_shape, _, topk_shape = sizes[:4]
+    if len(query_shape) != 4 or len(kv_shape) != 3 or len(topk_shape) != 3:
+        return None
+
+    b, m, h, d = query_shape
+    kv_b, kv_len, kv_d = kv_shape
+    topk_b, topk_m, topk = topk_shape
+    if b != kv_b or b != topk_b or m != topk_m or d != kv_d:
+        return None
+
+    return (b, m, kv_len, topk, h, d)
+
+
+def infer_shape_key_from_shape_text(shape_text: str, target_op: str) -> tuple[int, ...] | None:
+    if resolve_shape_source_op(target_op) == "sparse_attention":
+        return infer_sparse_attention_shape_from_text(shape_text)
+    return infer_bmnk_from_shape_text(shape_text)
+
+
+def convert_shape_to_display_and_count(
     shape_text: str,
-    count_map: dict[tuple[int, int, int, int], int],
+    count_map: dict[tuple[int, ...], int],
+    target_op: str,
     default_count: int | str = "-",
 ) -> tuple[str, str]:
-    bmnk = infer_bmnk_from_shape_text(shape_text)
-    if bmnk is None:
+    shape_key = infer_shape_key_from_shape_text(shape_text, target_op)
+    if shape_key is None:
         return shape_text, str(default_count)
 
-    count = count_map.get(bmnk, default_count)
-    b, m, n, k = bmnk
-    return f"{b}, {m}, {n}, {k}", str(count)
+    count = count_map.get(shape_key, default_count)
+    return ", ".join(str(dim) for dim in shape_key), str(count)
 
 
 def calc_gain_percent(default_speedup: str, expand_speedup: str) -> str:
@@ -330,14 +380,14 @@ def split_and_write_gain_lose_yaml(
     include_right_comparison: bool = True,
 ) -> tuple[int, int]:
     source_blocks = parse_model_yaml(model_yaml_path)
-    shape_to_gain: dict[tuple[int, int, int, int], float] = {}
+    shape_to_gain: dict[tuple[int, ...], float] = {}
     target_shape_op = resolve_shape_source_op(op)
 
     for row in rows_by_gain:
         shape_text = row[0]
         score_text = row[8] if include_right_comparison else row[4]
         parts = [part.strip() for part in shape_text.split(",")]
-        if len(parts) != 4:
+        if not parts:
             continue
         try:
             key = tuple(int(part) for part in parts)
@@ -370,9 +420,9 @@ def split_and_write_gain_lose_yaml(
         gain_shapes: list[list[int]] = []
         lose_shapes: list[list[int]] = []
         for shape in block_shapes:
-            if len(shape) < 4:
+            if not shape:
                 continue
-            key = (shape[0], shape[1], shape[2], shape[3])
+            key = tuple(shape)
             gain_value = shape_to_gain.get(key, float("-inf"))
             if include_right_comparison:
                 is_gain_shape = gain_value > 0
@@ -398,6 +448,7 @@ def append_table(
     lines: list[str],
     title: str,
     rows: list[list[str]],
+    shape_label: str,
     left_report_label: str,
     right_report_label: str,
     include_right_comparison: bool,
@@ -406,7 +457,7 @@ def append_table(
     lines.append("")
     if include_right_comparison:
         lines.append(
-            f"| Shape (B, M, N, K) | Count | {left_report_label} |  |  | "
+            f"| {shape_label} | Count | {left_report_label} |  |  | "
             f"{right_report_label} |  |  | Speedup Gain |"
         )
         lines.append("| --- | --- | --- | --- | --- | --- | --- | --- | --- |")
@@ -415,7 +466,7 @@ def append_table(
             f"Torch Latency (ms) | Gems Latency (ms) | Gems Speedup | {right_report_label} vs {left_report_label} |"
         )
     else:
-        lines.append(f"| Shape (B, M, N, K) | Count | {left_report_label} |  |  |")
+        lines.append(f"| {shape_label} | Count | {left_report_label} |  |  |")
         lines.append("| --- | --- | --- | --- | --- |")
         lines.append("|  |  | Torch Latency (ms) | Gems Latency (ms) | Gems Speedup |")
     for row in append_summary_rows(rows, include_right_comparison):
@@ -426,7 +477,8 @@ def append_table(
 def build_table_rows(
     sections: dict[str, dict[str, tuple[str, str, str]]],
     shape_order: list[str],
-    count_map: dict[tuple[int, int, int, int], int],
+    count_map: dict[tuple[int, ...], int],
+    target_op: str,
     default_count: int | str = "-",
     include_right_comparison: bool = True,
 ) -> tuple[list[list[str]], list[list[str]]]:
@@ -434,7 +486,12 @@ def build_table_rows(
 
     for shape in shape_order:
         left_metrics = sections["left"].get(shape, ("-", "-", "-"))
-        shape_bmnk, count = convert_shape_to_bmnk_and_count(shape, count_map, default_count)
+        shape_bmnk, count = convert_shape_to_display_and_count(
+            shape,
+            count_map,
+            target_op,
+            default_count,
+        )
         row = [shape_bmnk, count, left_metrics[0], left_metrics[1], left_metrics[2]]
 
         if include_right_comparison:
@@ -456,6 +513,7 @@ def write_excel_report(
     xlsx_path: Path,
     rows_by_gain: list[list[str]],
     rows_by_count: list[list[str]],
+    shape_label: str,
     left_report_label: str,
     right_report_label: str,
     include_right_comparison: bool = True,
@@ -487,7 +545,7 @@ def write_excel_report(
     def write_sheet(ws, rows: list[list[str]]) -> None:
         if include_right_comparison:
             ws.append([
-                "Shape (B, M, N, K)",
+                shape_label,
                 "Count",
                 left_report_label,
                 "",
@@ -516,7 +574,7 @@ def write_excel_report(
             ws.merge_cells("I1:I2")
         else:
             ws.append([
-                "Shape (B, M, N, K)",
+                shape_label,
                 "Count",
                 left_report_label,
                 "",
@@ -604,6 +662,7 @@ def build_report_content(
     include_right_comparison: bool,
 ) -> str:
     lines: list[str] = []
+    shape_label = get_shape_label(op)
     lines.append(f"# Performance Summary: {model} / {op}")
     lines.append("")
     lines.append(f"- Source log: `log/flagtune/{model}/{op}/pretune/pretune.log`")
@@ -623,6 +682,7 @@ def build_report_content(
         lines,
         primary_title,
         rows_by_gain,
+        shape_label,
         left_report_label,
         right_report_label,
         include_right_comparison,
@@ -632,6 +692,7 @@ def build_report_content(
             lines,
             "Sorted by Count",
             rows_by_count,
+            shape_label,
             left_report_label,
             right_report_label,
             include_right_comparison,
@@ -679,6 +740,7 @@ def main() -> None:
     sections, shape_order = parse_log(log_path, args.left_stage_label, args.right_stage_label)
     count_yaml_exists = count_yaml_path.exists()
     count_map = parse_count_map(count_yaml_path, args.op) if count_yaml_exists else {}
+    shape_label = get_shape_label(args.op)
     if not shape_order:
         raise ValueError("No performance rows were parsed from the log file")
 
@@ -687,6 +749,7 @@ def main() -> None:
         sections,
         shape_order,
         count_map,
+        args.op,
         default_count,
         include_right_comparison=args.include_right_comparison,
     )
@@ -707,6 +770,7 @@ def main() -> None:
         output_xlsx_path,
         rows_by_gain,
         rows_by_count,
+        shape_label,
         args.left_report_label,
         args.right_report_label,
         include_right_comparison=args.include_right_comparison,
