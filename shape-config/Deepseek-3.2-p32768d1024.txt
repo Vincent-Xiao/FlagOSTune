@@ -1,3 +1,10 @@
+flag_gems.ops.router_gemm.splitk_mm, [shape info]: [-, 1, 256, 7168](batch, M, N, K), [count]: 204
+flag_gems.ops.router_gemm.splitk_mm, [shape info]: [-, 16, 256, 7168](batch, M, N, K), [count]: 201
+flag_gems.ops.router_gemm.splitk_mm, [shape info]: [-, 8, 256, 7168](batch, M, N, K), [count]: 171
+flag_gems.ops.router_gemm.splitk_mm, [shape info]: [-, 4, 256, 7168](batch, M, N, K), [count]: 153
+flag_gems.ops.router_gemm.splitk_mm, [shape info]: [-, 2, 256, 7168](batch, M, N, K), [count]: 125
+flag_gems.ops.router_gemm.splitk_mm, [shape info]: [-, 2, 256, 7168], [count]: 3
+flag_gems.ops.router_gemm.splitk_mm, [shape info]: [-, 16, 256, 7168], [count]: 1
 flag_gems.ops.mm.general_mm, [shape info]: [-, 8, 16160, 7168](batch, M, N, K), [count]: 5022
 flag_gems.ops.mm.general_mm, [shape info]: [-, 16384, 64, 7168](batch, M, N, K), [count]: 988
 flag_gems.ops.mm.general_mm, [shape info]: [-, 16384, 256, 7168](batch, M, N, K), [count]: 944
