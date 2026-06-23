@@ -547,3 +547,505 @@ flag_gems.ops.w8a8_block_fp8_matmul.general_w8a8_block_fp8_matmul, [shape info]:
 flag_gems.ops.w8a8_block_fp8_matmul.general_w8a8_block_fp8_matmul, [shape info]: [-, 4815, 8192, 1024](batch, M, N, K), [count]: 21
 flag_gems.ops.w8a8_block_fp8_matmul.general_w8a8_block_fp8_matmul, [shape info]: [-, 57, 8192, 1024](batch, M, N, K), [count]: 21
 flag_gems.ops.w8a8_block_fp8_matmul.general_w8a8_block_fp8_matmul, [shape info]: [-, 6, 8192, 1024](batch, M, N, K), [count]: 21
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [2, 8192](num_tokens, topk), [count]: 5108
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [64, 8192](num_tokens, topk), [count]: 5050
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [104, 8192](num_tokens, topk), [count]: 2273
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [1, 8192](num_tokens, topk), [count]: 586
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [16, 8192](num_tokens, topk), [count]: 17
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [32, 8192](num_tokens, topk), [count]: 17
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [48, 8192](num_tokens, topk), [count]: 17
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [24, 8192](num_tokens, topk), [count]: 16
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [40, 8192](num_tokens, topk), [count]: 16
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [56, 8192](num_tokens, topk), [count]: 16
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [4, 8192](num_tokens, topk), [count]: 11
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [8, 8192](num_tokens, topk), [count]: 11
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [36, 8192](num_tokens, topk), [count]: 4
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [44, 8192](num_tokens, topk), [count]: 4
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [496, 8192](num_tokens, topk), [count]: 4
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [512, 8192](num_tokens, topk), [count]: 4
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [52, 8192](num_tokens, topk), [count]: 4
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [60, 8192](num_tokens, topk), [count]: 4
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [12, 8192](num_tokens, topk), [count]: 3
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [20, 8192](num_tokens, topk), [count]: 3
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [28, 8192](num_tokens, topk), [count]: 3
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [72, 8192](num_tokens, topk), [count]: 3
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [80, 8192](num_tokens, topk), [count]: 3
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [88, 8192](num_tokens, topk), [count]: 3
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [96, 8192](num_tokens, topk), [count]: 3
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [112, 8192](num_tokens, topk), [count]: 2
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [120, 8192](num_tokens, topk), [count]: 2
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [128, 8192](num_tokens, topk), [count]: 2
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [136, 8192](num_tokens, topk), [count]: 2
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [144, 8192](num_tokens, topk), [count]: 2
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [152, 8192](num_tokens, topk), [count]: 2
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [160, 8192](num_tokens, topk), [count]: 2
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [168, 8192](num_tokens, topk), [count]: 2
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [176, 8192](num_tokens, topk), [count]: 2
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [184, 8192](num_tokens, topk), [count]: 2
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [192, 8192](num_tokens, topk), [count]: 2
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [200, 8192](num_tokens, topk), [count]: 2
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [208, 8192](num_tokens, topk), [count]: 2
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [216, 8192](num_tokens, topk), [count]: 2
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [224, 8192](num_tokens, topk), [count]: 2
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [232, 8192](num_tokens, topk), [count]: 2
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [240, 8192](num_tokens, topk), [count]: 2
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [248, 8192](num_tokens, topk), [count]: 2
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [256, 8192](num_tokens, topk), [count]: 2
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [272, 8192](num_tokens, topk), [count]: 2
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [288, 8192](num_tokens, topk), [count]: 2
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [304, 8192](num_tokens, topk), [count]: 2
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [320, 8192](num_tokens, topk), [count]: 2
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [336, 8192](num_tokens, topk), [count]: 2
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [352, 8192](num_tokens, topk), [count]: 2
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [368, 8192](num_tokens, topk), [count]: 2
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [384, 8192](num_tokens, topk), [count]: 2
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [400, 8192](num_tokens, topk), [count]: 2
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [416, 8192](num_tokens, topk), [count]: 2
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [432, 8192](num_tokens, topk), [count]: 2
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [448, 8192](num_tokens, topk), [count]: 2
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [464, 8192](num_tokens, topk), [count]: 2
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [480, 8192](num_tokens, topk), [count]: 2
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [10, 8192](num_tokens, topk), [count]: 1
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [11, 8192](num_tokens, topk), [count]: 1
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [13, 8192](num_tokens, topk), [count]: 1
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [17, 8192](num_tokens, topk), [count]: 1
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [21, 8192](num_tokens, topk), [count]: 1
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [22, 8192](num_tokens, topk), [count]: 1
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [25, 8192](num_tokens, topk), [count]: 1
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [27, 8192](num_tokens, topk), [count]: 1
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [29, 8192](num_tokens, topk), [count]: 1
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [33, 8192](num_tokens, topk), [count]: 1
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [37, 8192](num_tokens, topk), [count]: 1
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [41, 8192](num_tokens, topk), [count]: 1
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [45, 8192](num_tokens, topk), [count]: 1
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [49, 8192](num_tokens, topk), [count]: 1
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [5, 8192](num_tokens, topk), [count]: 1
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [53, 8192](num_tokens, topk), [count]: 1
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [57, 8192](num_tokens, topk), [count]: 1
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [61, 8192](num_tokens, topk), [count]: 1
+flag_gems.ops.compute_global_topk_indices_and_lens.compute_global_topk_indices_and_lens, [shape info]: [9, 8192](num_tokens, topk), [count]: 1
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [1, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 335
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [32, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 215
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [40, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 215
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [48, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 215
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [56, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 215
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [4, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 214
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [16, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 172
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [24, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 172
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [8, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 172
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [496, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 169
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [512, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 156
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [2, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 129
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [36, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 129
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [44, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 129
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [52, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 129
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [60, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 129
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [120, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 87
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [104, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 86
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [12, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 86
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [128, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 86
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [136, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 86
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [168, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 86
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [176, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 86
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [184, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 86
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [192, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 86
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [20, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 86
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [200, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 86
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [248, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 86
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [256, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 86
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [27, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 86
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [272, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 86
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [28, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 86
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [288, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 86
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [304, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 86
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [320, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 86
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [336, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 86
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [352, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 86
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [400, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 86
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [416, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 86
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [464, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 86
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [64, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 86
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [72, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 86
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [80, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 86
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [88, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 86
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [96, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 86
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [144, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 85
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [160, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 86
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [208, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 85
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [224, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 86
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [232, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 85
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [240, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 86
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [368, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 85
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [384, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 86
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [432, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 85
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [448, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 86
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [480, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 85
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [112, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 84
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [152, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 85
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [216, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 85
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [13, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 43
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [15, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 43
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [17, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 43
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [19, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 43
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [21, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 43
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [23, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 43
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [25, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 43
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [29, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 43
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [31, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 43
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [33, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 43
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [35, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 43
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [37, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 43
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [39, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 43
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [41, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 43
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [43, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 43
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [45, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 43
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [47, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 43
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [49, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 43
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [5, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 43
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [51, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 43
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [55, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 43
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [57, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 43
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [59, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 43
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [61, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 43
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [9, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 43
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [11, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 43
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [63, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 42
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [53, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 43
+flag_gems.ops.flash_mla_with_kvcache.flash_mla_with_kvcache, [shape info]: [7, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 24
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [4100, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 105
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [4100, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 100
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [16383, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 63
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [16384, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 63
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [16383, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 60
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [16384, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 60
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [4112, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 45
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12317, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 42
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12337, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 42
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12361, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 42
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12389, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 42
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12421, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 42
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12457, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 42
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12497, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 42
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12541, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 42
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12589, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 42
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12641, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 42
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12697, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 42
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12757, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 42
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12821, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 42
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12889, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 42
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12931, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 42
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12961, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 42
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3439, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 42
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3469, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 42
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3511, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 42
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3579, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 42
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3643, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 42
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3703, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 42
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3759, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 42
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3811, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 42
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3859, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 42
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3903, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 42
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3943, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 42
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3979, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 42
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [4011, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 42
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [4039, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 42
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [4063, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 42
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [4112, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 42
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12317, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 40
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12337, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 40
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12361, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 40
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12389, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 40
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12421, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 40
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12457, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 40
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12497, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 40
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12541, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 40
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12589, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 40
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12641, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 40
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12697, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 40
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12757, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 40
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12821, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 40
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12889, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 40
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12931, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 40
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12961, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 40
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3439, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 40
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3469, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 40
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3511, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 40
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3579, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 40
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3643, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 40
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3703, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 40
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3759, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 40
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3811, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 40
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3859, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 40
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3903, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 40
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3943, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 40
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3979, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 40
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [4011, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 40
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [4039, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 40
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [4063, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 40
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3835, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 22
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [1028, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 21
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [11440, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 21
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12300, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 21
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12318, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 21
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12320, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 21
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12339, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 21
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12364, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 21
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12370, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 21
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12393, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 21
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12426, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 21
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12436, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 21
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12463, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 21
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12475, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 21
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12504, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 21
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12511, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 21
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12518, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 21
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12549, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 21
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12559, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 21
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12565, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 21
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12598, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 21
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12611, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 21
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12616, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 21
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12651, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 21
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12667, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 21
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12671, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 21
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12708, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 21
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12727, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 21
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12730, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 21
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12769, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 21
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12791, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 21
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12793, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 21
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12834, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 21
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12859, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 21
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12860, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 21
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12903, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 21
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [16380, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 21
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [16382, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 21
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3394, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 21
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3424, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 21
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3497, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 21
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3540, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 21
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3541, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 21
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3566, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 21
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3607, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 21
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3609, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 21
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3631, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 21
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3670, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 21
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3673, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 21
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3692, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 21
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3729, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 21
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3733, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 21
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3749, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 21
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3784, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 21
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3789, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 21
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3802, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 21
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3841, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 21
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3851, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 21
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3882, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 21
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3896, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 21
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3925, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 21
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3937, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 21
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3964, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 21
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3974, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 21
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3999, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 21
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [4007, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 21
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [4030, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 21
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [4036, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 21
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [4057, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 21
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [4061, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 21
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [4917, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 21
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [706, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 21
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [8876, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 21
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [1028, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 20
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [11440, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 20
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12300, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 20
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12318, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 20
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12320, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 20
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12339, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 20
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12343, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 20
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12343, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 20
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12364, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 20
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12370, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 20
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12393, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 20
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12401, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 20
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12401, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 20
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12426, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 20
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12436, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 20
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12463, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 20
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12475, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 20
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12504, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 20
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12511, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 20
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12549, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 20
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12559, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 20
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12565, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 20
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12598, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 20
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12611, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 20
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12616, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 20
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12651, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 20
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12667, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 20
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12671, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 20
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12708, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 20
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12727, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 20
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12730, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 20
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12769, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 20
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12791, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 20
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12793, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 20
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12834, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 20
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12859, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 20
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12860, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 20
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12903, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 20
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [16382, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 20
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3394, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 20
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3424, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 20
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3497, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 20
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3540, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 20
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3541, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 20
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3566, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 20
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3607, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 20
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3609, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 20
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3631, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 20
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3670, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 20
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3673, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 20
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3692, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 20
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3729, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 20
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3733, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 20
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3749, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 20
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3784, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 20
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3789, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 20
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3802, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 20
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3841, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 20
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3851, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 20
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3882, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 20
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3896, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 20
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3925, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 20
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3937, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 20
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3964, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 20
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3974, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 20
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3999, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 20
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [4007, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 20
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [4030, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 20
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [4036, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 20
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [4057, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 20
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [4061, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 20
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [4917, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 20
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [706, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 20
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [8876, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 20
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12518, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 19
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [16380, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 19
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3835, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 19
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [4047, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 15
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [4047, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 14
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [4100, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 10
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [16383, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 6
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [16384, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 6
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [4112, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 6
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12317, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 4
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12337, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 4
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12361, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 4
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12389, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 4
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12421, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 4
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12457, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 4
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12497, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 4
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12541, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 4
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12589, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 4
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12641, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 4
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12697, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 4
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12757, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 4
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12821, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 4
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12889, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 4
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12931, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 4
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12961, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 4
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3439, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 4
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3469, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 4
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3511, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 4
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3579, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 4
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3643, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 4
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3703, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 4
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3759, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 4
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3811, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 4
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3859, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 4
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3903, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 4
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3943, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 4
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3979, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 4
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [4011, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 4
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [4039, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 4
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [4063, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 4
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12320, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 3
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12343, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 3
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12401, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 3
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [1028, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 2
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12300, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 2
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12318, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 2
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12339, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 2
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12364, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 2
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12370, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 2
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12393, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 2
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12426, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 2
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12436, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 2
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12463, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 2
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12475, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 2
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12504, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 2
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12511, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 2
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12518, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 2
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12549, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 2
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12559, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 2
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12565, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 2
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12598, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 2
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12611, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 2
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12616, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 2
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12651, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 2
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12667, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 2
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12671, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 2
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12708, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 2
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12727, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 2
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12730, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 2
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12769, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 2
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12791, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 2
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12793, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 2
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12834, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 2
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12859, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 2
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12860, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 2
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [12903, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 2
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [16380, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 2
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [16382, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 2
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3394, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 2
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3424, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 2
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3497, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 2
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3540, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 2
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3541, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 2
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3566, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 2
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3607, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 2
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3609, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 2
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3631, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 2
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3670, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 2
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3673, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 2
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3692, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 2
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3729, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 2
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3733, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 2
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3749, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 2
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3784, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 2
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3789, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 2
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3802, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 2
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3835, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 2
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3841, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 2
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3851, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 2
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3882, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 2
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3896, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 2
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3925, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 2
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3937, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 2
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3964, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 2
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3974, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 2
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3999, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 2
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [4007, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 2
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [4030, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 2
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [4036, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 2
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [4047, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 2
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [4057, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 2
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [4061, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 2
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [706, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 2
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [8876, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 2
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [9, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 2
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [11440, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 1
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [4, 1, 64, 512, 512, 128, 64](batch, seq_q, num_heads_q, head_dim_k, head_dim_v, topk, page_block_size), [count]: 1
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [4917, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 1
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [9, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 2
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [9, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 1
