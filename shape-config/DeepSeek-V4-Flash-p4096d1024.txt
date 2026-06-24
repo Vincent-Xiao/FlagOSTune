@@ -1049,3 +1049,97 @@ flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [4, 1, 64, 512
 flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [4917, 64, 512, 66048, 1, 128, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 1
 flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [9, 64, 512, 1114624, 1, 640, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 2
 flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [9, 64, 512, 98816, 1, 8320, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 1
+flag_gems.ops.top_k_per_row_decode.sparse_attn_indexer, [shape info]: [1, 262144, 1, 512, 262144, 1](num_rows, vocab_size, next_n, top_k, stride0, stride1), [count]: 147
+flag_gems.ops.top_k_per_row_decode.sparse_attn_indexer, [shape info]: [16, 262144, 1, 512, 262144, 1](num_rows, vocab_size, next_n, top_k, stride0, stride1), [count]: 147
+flag_gems.ops.top_k_per_row_decode.sparse_attn_indexer, [shape info]: [32, 262144, 1, 512, 262144, 1](num_rows, vocab_size, next_n, top_k, stride0, stride1), [count]: 147
+flag_gems.ops.top_k_per_row_decode.sparse_attn_indexer, [shape info]: [40, 262144, 1, 512, 262144, 1](num_rows, vocab_size, next_n, top_k, stride0, stride1), [count]: 147
+flag_gems.ops.top_k_per_row_decode.sparse_attn_indexer, [shape info]: [48, 262144, 1, 512, 262144, 1](num_rows, vocab_size, next_n, top_k, stride0, stride1), [count]: 147
+flag_gems.ops.top_k_per_row_decode.sparse_attn_indexer, [shape info]: [56, 262144, 1, 512, 262144, 1](num_rows, vocab_size, next_n, top_k, stride0, stride1), [count]: 147
+flag_gems.ops.top_k_per_row_decode.sparse_attn_indexer, [shape info]: [24, 262144, 1, 512, 262144, 1](num_rows, vocab_size, next_n, top_k, stride0, stride1), [count]: 126
+flag_gems.ops.top_k_per_row_decode.sparse_attn_indexer, [shape info]: [4, 262144, 1, 512, 262144, 1](num_rows, vocab_size, next_n, top_k, stride0, stride1), [count]: 126
+flag_gems.ops.top_k_per_row_decode.sparse_attn_indexer, [shape info]: [8, 262144, 1, 512, 262144, 1](num_rows, vocab_size, next_n, top_k, stride0, stride1), [count]: 126
+flag_gems.ops.top_k_per_row_decode.sparse_attn_indexer, [shape info]: [36, 262144, 1, 512, 262144, 1](num_rows, vocab_size, next_n, top_k, stride0, stride1), [count]: 105
+flag_gems.ops.top_k_per_row_decode.sparse_attn_indexer, [shape info]: [44, 262144, 1, 512, 262144, 1](num_rows, vocab_size, next_n, top_k, stride0, stride1), [count]: 105
+flag_gems.ops.top_k_per_row_decode.sparse_attn_indexer, [shape info]: [52, 262144, 1, 512, 262144, 1](num_rows, vocab_size, next_n, top_k, stride0, stride1), [count]: 105
+flag_gems.ops.top_k_per_row_decode.sparse_attn_indexer, [shape info]: [60, 262144, 1, 512, 262144, 1](num_rows, vocab_size, next_n, top_k, stride0, stride1), [count]: 105
+flag_gems.ops.top_k_per_row_decode.sparse_attn_indexer, [shape info]: [12, 262144, 1, 512, 262144, 1](num_rows, vocab_size, next_n, top_k, stride0, stride1), [count]: 84
+flag_gems.ops.top_k_per_row_decode.sparse_attn_indexer, [shape info]: [20, 262144, 1, 512, 262144, 1](num_rows, vocab_size, next_n, top_k, stride0, stride1), [count]: 84
+flag_gems.ops.top_k_per_row_decode.sparse_attn_indexer, [shape info]: [28, 262144, 1, 512, 262144, 1](num_rows, vocab_size, next_n, top_k, stride0, stride1), [count]: 84
+flag_gems.ops.top_k_per_row_decode.sparse_attn_indexer, [shape info]: [496, 262144, 1, 512, 262144, 1](num_rows, vocab_size, next_n, top_k, stride0, stride1), [count]: 84
+flag_gems.ops.top_k_per_row_decode.sparse_attn_indexer, [shape info]: [512, 262144, 1, 512, 262144, 1](num_rows, vocab_size, next_n, top_k, stride0, stride1), [count]: 84
+flag_gems.ops.top_k_per_row_decode.sparse_attn_indexer, [shape info]: [104, 262144, 1, 512, 262144, 1](num_rows, vocab_size, next_n, top_k, stride0, stride1), [count]: 42
+flag_gems.ops.top_k_per_row_decode.sparse_attn_indexer, [shape info]: [112, 262144, 1, 512, 262144, 1](num_rows, vocab_size, next_n, top_k, stride0, stride1), [count]: 42
+flag_gems.ops.top_k_per_row_decode.sparse_attn_indexer, [shape info]: [120, 262144, 1, 512, 262144, 1](num_rows, vocab_size, next_n, top_k, stride0, stride1), [count]: 42
+flag_gems.ops.top_k_per_row_decode.sparse_attn_indexer, [shape info]: [128, 262144, 1, 512, 262144, 1](num_rows, vocab_size, next_n, top_k, stride0, stride1), [count]: 42
+flag_gems.ops.top_k_per_row_decode.sparse_attn_indexer, [shape info]: [136, 262144, 1, 512, 262144, 1](num_rows, vocab_size, next_n, top_k, stride0, stride1), [count]: 42
+flag_gems.ops.top_k_per_row_decode.sparse_attn_indexer, [shape info]: [144, 262144, 1, 512, 262144, 1](num_rows, vocab_size, next_n, top_k, stride0, stride1), [count]: 42
+flag_gems.ops.top_k_per_row_decode.sparse_attn_indexer, [shape info]: [152, 262144, 1, 512, 262144, 1](num_rows, vocab_size, next_n, top_k, stride0, stride1), [count]: 42
+flag_gems.ops.top_k_per_row_decode.sparse_attn_indexer, [shape info]: [160, 262144, 1, 512, 262144, 1](num_rows, vocab_size, next_n, top_k, stride0, stride1), [count]: 42
+flag_gems.ops.top_k_per_row_decode.sparse_attn_indexer, [shape info]: [168, 262144, 1, 512, 262144, 1](num_rows, vocab_size, next_n, top_k, stride0, stride1), [count]: 42
+flag_gems.ops.top_k_per_row_decode.sparse_attn_indexer, [shape info]: [176, 262144, 1, 512, 262144, 1](num_rows, vocab_size, next_n, top_k, stride0, stride1), [count]: 42
+flag_gems.ops.top_k_per_row_decode.sparse_attn_indexer, [shape info]: [184, 262144, 1, 512, 262144, 1](num_rows, vocab_size, next_n, top_k, stride0, stride1), [count]: 42
+flag_gems.ops.top_k_per_row_decode.sparse_attn_indexer, [shape info]: [192, 262144, 1, 512, 262144, 1](num_rows, vocab_size, next_n, top_k, stride0, stride1), [count]: 42
+flag_gems.ops.top_k_per_row_decode.sparse_attn_indexer, [shape info]: [2, 262144, 1, 512, 262144, 1](num_rows, vocab_size, next_n, top_k, stride0, stride1), [count]: 42
+flag_gems.ops.top_k_per_row_decode.sparse_attn_indexer, [shape info]: [200, 262144, 1, 512, 262144, 1](num_rows, vocab_size, next_n, top_k, stride0, stride1), [count]: 42
+flag_gems.ops.top_k_per_row_decode.sparse_attn_indexer, [shape info]: [208, 262144, 1, 512, 262144, 1](num_rows, vocab_size, next_n, top_k, stride0, stride1), [count]: 42
+flag_gems.ops.top_k_per_row_decode.sparse_attn_indexer, [shape info]: [216, 262144, 1, 512, 262144, 1](num_rows, vocab_size, next_n, top_k, stride0, stride1), [count]: 42
+flag_gems.ops.top_k_per_row_decode.sparse_attn_indexer, [shape info]: [224, 262144, 1, 512, 262144, 1](num_rows, vocab_size, next_n, top_k, stride0, stride1), [count]: 42
+flag_gems.ops.top_k_per_row_decode.sparse_attn_indexer, [shape info]: [232, 262144, 1, 512, 262144, 1](num_rows, vocab_size, next_n, top_k, stride0, stride1), [count]: 42
+flag_gems.ops.top_k_per_row_decode.sparse_attn_indexer, [shape info]: [240, 262144, 1, 512, 262144, 1](num_rows, vocab_size, next_n, top_k, stride0, stride1), [count]: 42
+flag_gems.ops.top_k_per_row_decode.sparse_attn_indexer, [shape info]: [248, 262144, 1, 512, 262144, 1](num_rows, vocab_size, next_n, top_k, stride0, stride1), [count]: 42
+flag_gems.ops.top_k_per_row_decode.sparse_attn_indexer, [shape info]: [256, 262144, 1, 512, 262144, 1](num_rows, vocab_size, next_n, top_k, stride0, stride1), [count]: 42
+flag_gems.ops.top_k_per_row_decode.sparse_attn_indexer, [shape info]: [272, 262144, 1, 512, 262144, 1](num_rows, vocab_size, next_n, top_k, stride0, stride1), [count]: 42
+flag_gems.ops.top_k_per_row_decode.sparse_attn_indexer, [shape info]: [288, 262144, 1, 512, 262144, 1](num_rows, vocab_size, next_n, top_k, stride0, stride1), [count]: 42
+flag_gems.ops.top_k_per_row_decode.sparse_attn_indexer, [shape info]: [304, 262144, 1, 512, 262144, 1](num_rows, vocab_size, next_n, top_k, stride0, stride1), [count]: 42
+flag_gems.ops.top_k_per_row_decode.sparse_attn_indexer, [shape info]: [320, 262144, 1, 512, 262144, 1](num_rows, vocab_size, next_n, top_k, stride0, stride1), [count]: 42
+flag_gems.ops.top_k_per_row_decode.sparse_attn_indexer, [shape info]: [336, 262144, 1, 512, 262144, 1](num_rows, vocab_size, next_n, top_k, stride0, stride1), [count]: 42
+flag_gems.ops.top_k_per_row_decode.sparse_attn_indexer, [shape info]: [352, 262144, 1, 512, 262144, 1](num_rows, vocab_size, next_n, top_k, stride0, stride1), [count]: 42
+flag_gems.ops.top_k_per_row_decode.sparse_attn_indexer, [shape info]: [368, 262144, 1, 512, 262144, 1](num_rows, vocab_size, next_n, top_k, stride0, stride1), [count]: 42
+flag_gems.ops.top_k_per_row_decode.sparse_attn_indexer, [shape info]: [384, 262144, 1, 512, 262144, 1](num_rows, vocab_size, next_n, top_k, stride0, stride1), [count]: 42
+flag_gems.ops.top_k_per_row_decode.sparse_attn_indexer, [shape info]: [400, 262144, 1, 512, 262144, 1](num_rows, vocab_size, next_n, top_k, stride0, stride1), [count]: 42
+flag_gems.ops.top_k_per_row_decode.sparse_attn_indexer, [shape info]: [416, 262144, 1, 512, 262144, 1](num_rows, vocab_size, next_n, top_k, stride0, stride1), [count]: 42
+flag_gems.ops.top_k_per_row_decode.sparse_attn_indexer, [shape info]: [432, 262144, 1, 512, 262144, 1](num_rows, vocab_size, next_n, top_k, stride0, stride1), [count]: 42
+flag_gems.ops.top_k_per_row_decode.sparse_attn_indexer, [shape info]: [448, 262144, 1, 512, 262144, 1](num_rows, vocab_size, next_n, top_k, stride0, stride1), [count]: 42
+flag_gems.ops.top_k_per_row_decode.sparse_attn_indexer, [shape info]: [464, 262144, 1, 512, 262144, 1](num_rows, vocab_size, next_n, top_k, stride0, stride1), [count]: 42
+flag_gems.ops.top_k_per_row_decode.sparse_attn_indexer, [shape info]: [480, 262144, 1, 512, 262144, 1](num_rows, vocab_size, next_n, top_k, stride0, stride1), [count]: 42
+flag_gems.ops.top_k_per_row_decode.sparse_attn_indexer, [shape info]: [64, 262144, 1, 512, 262144, 1](num_rows, vocab_size, next_n, top_k, stride0, stride1), [count]: 42
+flag_gems.ops.top_k_per_row_decode.sparse_attn_indexer, [shape info]: [72, 262144, 1, 512, 262144, 1](num_rows, vocab_size, next_n, top_k, stride0, stride1), [count]: 42
+flag_gems.ops.top_k_per_row_decode.sparse_attn_indexer, [shape info]: [80, 262144, 1, 512, 262144, 1](num_rows, vocab_size, next_n, top_k, stride0, stride1), [count]: 42
+flag_gems.ops.top_k_per_row_decode.sparse_attn_indexer, [shape info]: [88, 262144, 1, 512, 262144, 1](num_rows, vocab_size, next_n, top_k, stride0, stride1), [count]: 42
+flag_gems.ops.top_k_per_row_decode.sparse_attn_indexer, [shape info]: [96, 262144, 1, 512, 262144, 1](num_rows, vocab_size, next_n, top_k, stride0, stride1), [count]: 42
+flag_gems.ops.top_k_per_row_decode.sparse_attn_indexer, [shape info]: [11, 262144, 1, 512, 262144, 1](num_rows, vocab_size, next_n, top_k, stride0, stride1), [count]: 21
+flag_gems.ops.top_k_per_row_decode.sparse_attn_indexer, [shape info]: [22, 262144, 1, 512, 262144, 1](num_rows, vocab_size, next_n, top_k, stride0, stride1), [count]: 21
+flag_gems.ops.top_k_per_row_decode.sparse_attn_indexer, [shape info]: [27, 262144, 1, 512, 262144, 1](num_rows, vocab_size, next_n, top_k, stride0, stride1), [count]: 21
+flag_gems.ops.top_k_per_row_decode.sparse_attn_indexer, [shape info]: [6, 262144, 1, 512, 262144, 1](num_rows, vocab_size, next_n, top_k, stride0, stride1), [count]: 21
+flag_gems.ops.top_k_per_row_prefill.sparse_attn_indexer, [shape info]: [12961, 4100, 512, 4360, 1](num_rows, vocab_size, top_k, stride0, stride1), [count]: 84
+flag_gems.ops.top_k_per_row_prefill.sparse_attn_indexer, [shape info]: [16328, 4959, 512, 5216, 1](num_rows, vocab_size, top_k, stride0, stride1), [count]: 84
+flag_gems.ops.top_k_per_row_prefill.sparse_attn_indexer, [shape info]: [16332, 4977, 512, 5240, 1](num_rows, vocab_size, top_k, stride0, stride1), [count]: 84
+flag_gems.ops.top_k_per_row_prefill.sparse_attn_indexer, [shape info]: [16336, 4994, 512, 5256, 1](num_rows, vocab_size, top_k, stride0, stride1), [count]: 84
+flag_gems.ops.top_k_per_row_prefill.sparse_attn_indexer, [shape info]: [16340, 5010, 512, 5272, 1](num_rows, vocab_size, top_k, stride0, stride1), [count]: 84
+flag_gems.ops.top_k_per_row_prefill.sparse_attn_indexer, [shape info]: [16344, 5025, 512, 5288, 1](num_rows, vocab_size, top_k, stride0, stride1), [count]: 84
+flag_gems.ops.top_k_per_row_prefill.sparse_attn_indexer, [shape info]: [16348, 5039, 512, 5296, 1](num_rows, vocab_size, top_k, stride0, stride1), [count]: 84
+flag_gems.ops.top_k_per_row_prefill.sparse_attn_indexer, [shape info]: [16352, 5052, 512, 5312, 1](num_rows, vocab_size, top_k, stride0, stride1), [count]: 84
+flag_gems.ops.top_k_per_row_prefill.sparse_attn_indexer, [shape info]: [16356, 5064, 512, 5320, 1](num_rows, vocab_size, top_k, stride0, stride1), [count]: 84
+flag_gems.ops.top_k_per_row_prefill.sparse_attn_indexer, [shape info]: [16360, 5075, 512, 5336, 1](num_rows, vocab_size, top_k, stride0, stride1), [count]: 84
+flag_gems.ops.top_k_per_row_prefill.sparse_attn_indexer, [shape info]: [16364, 5085, 512, 5344, 1](num_rows, vocab_size, top_k, stride0, stride1), [count]: 84
+flag_gems.ops.top_k_per_row_prefill.sparse_attn_indexer, [shape info]: [16368, 5094, 512, 5352, 1](num_rows, vocab_size, top_k, stride0, stride1), [count]: 84
+flag_gems.ops.top_k_per_row_prefill.sparse_attn_indexer, [shape info]: [16372, 5102, 512, 5360, 1](num_rows, vocab_size, top_k, stride0, stride1), [count]: 84
+flag_gems.ops.top_k_per_row_prefill.sparse_attn_indexer, [shape info]: [16376, 5109, 512, 5368, 1](num_rows, vocab_size, top_k, stride0, stride1), [count]: 84
+flag_gems.ops.top_k_per_row_prefill.sparse_attn_indexer, [shape info]: [16380, 5115, 512, 5376, 1](num_rows, vocab_size, top_k, stride0, stride1), [count]: 84
+flag_gems.ops.top_k_per_row_prefill.sparse_attn_indexer, [shape info]: [16383, 4095, 512, 4352, 1](num_rows, vocab_size, top_k, stride0, stride1), [count]: 84
+flag_gems.ops.top_k_per_row_prefill.sparse_attn_indexer, [shape info]: [4100, 1025, 512, 1288, 1](num_rows, vocab_size, top_k, stride0, stride1), [count]: 84
+flag_gems.ops.top_k_per_row_prefill.sparse_attn_indexer, [shape info]: [12931, 4100, 512, 4360, 1](num_rows, vocab_size, top_k, stride0, stride1), [count]: 21
+flag_gems.ops.top_k_per_row_prefill.sparse_attn_indexer, [shape info]: [16328, 4967, 512, 5224, 1](num_rows, vocab_size, top_k, stride0, stride1), [count]: 21
+flag_gems.ops.top_k_per_row_prefill.sparse_attn_indexer, [shape info]: [16332, 4985, 512, 5248, 1](num_rows, vocab_size, top_k, stride0, stride1), [count]: 21
+flag_gems.ops.top_k_per_row_prefill.sparse_attn_indexer, [shape info]: [16336, 5002, 512, 5264, 1](num_rows, vocab_size, top_k, stride0, stride1), [count]: 21
+flag_gems.ops.top_k_per_row_prefill.sparse_attn_indexer, [shape info]: [16340, 5018, 512, 5280, 1](num_rows, vocab_size, top_k, stride0, stride1), [count]: 21
+flag_gems.ops.top_k_per_row_prefill.sparse_attn_indexer, [shape info]: [16344, 5033, 512, 5296, 1](num_rows, vocab_size, top_k, stride0, stride1), [count]: 21
+flag_gems.ops.top_k_per_row_prefill.sparse_attn_indexer, [shape info]: [16348, 5047, 512, 5304, 1](num_rows, vocab_size, top_k, stride0, stride1), [count]: 21
+flag_gems.ops.top_k_per_row_prefill.sparse_attn_indexer, [shape info]: [16352, 5060, 512, 5320, 1](num_rows, vocab_size, top_k, stride0, stride1), [count]: 21
+flag_gems.ops.top_k_per_row_prefill.sparse_attn_indexer, [shape info]: [16357, 5841, 512, 6104, 1](num_rows, vocab_size, top_k, stride0, stride1), [count]: 21
+flag_gems.ops.top_k_per_row_prefill.sparse_attn_indexer, [shape info]: [16362, 5597, 512, 5856, 1](num_rows, vocab_size, top_k, stride0, stride1), [count]: 21
+flag_gems.ops.top_k_per_row_prefill.sparse_attn_indexer, [shape info]: [16368, 6376, 512, 6632, 1](num_rows, vocab_size, top_k, stride0, stride1), [count]: 21
+flag_gems.ops.top_k_per_row_prefill.sparse_attn_indexer, [shape info]: [16373, 6129, 512, 6392, 1](num_rows, vocab_size, top_k, stride0, stride1), [count]: 21
+flag_gems.ops.top_k_per_row_prefill.sparse_attn_indexer, [shape info]: [16378, 5881, 512, 6144, 1](num_rows, vocab_size, top_k, stride0, stride1), [count]: 21
+flag_gems.ops.top_k_per_row_prefill.sparse_attn_indexer, [shape info]: [16383, 5631, 512, 5888, 1](num_rows, vocab_size, top_k, stride0, stride1), [count]: 21
+flag_gems.ops.top_k_per_row_prefill.sparse_attn_indexer, [shape info]: [3076, 1025, 512, 1288, 1](num_rows, vocab_size, top_k, stride0, stride1), [count]: 21
