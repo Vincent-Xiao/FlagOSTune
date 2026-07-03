@@ -5,6 +5,7 @@ import argparse
 import re
 from pathlib import Path
 
+import yaml
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font
 from openpyxl.utils import get_column_letter
@@ -18,6 +19,10 @@ DATA_LINE_RE = re.compile(
     r"(?P<shape>\[.*\])\s*$"
 )
 TORCH_SIZE_RE = re.compile(r"torch\.Size\(\[(?P<dims>[^\]]+)\]\)")
+SCALAR_TAIL_RE = re.compile(
+    r",\s*[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?\s*\]$"
+)
+ShapeKey = tuple[object, ...]
 
 TABLE_HEADERS = [
     "Shape (B, M, N, K)",
@@ -34,6 +39,7 @@ TABLE_HEADERS = [
 COMPARISON_TABLE_TITLE = "Sorted by Speedup Gain"
 SINGLE_CONFIG_TABLE_TITLE = "Performance Summary"
 OP_SHAPE_LABELS = {
+    "mul": "Inputs (kind and shapes)",
     "sparse_attention": "Shape (B, M, KV_LEN, TOPK, H, D)",
 }
 
@@ -57,12 +63,43 @@ def get_shape_label(op: str) -> str:
     return OP_SHAPE_LABELS.get(resolve_shape_source_op(op), "Shape (B, M, N, K)")
 
 
-def parse_count_map(count_yaml_path: Path, target_op: str) -> dict[tuple[int, ...], int]:
-    count_map: dict[tuple[int, ...], int] = {}
+def freeze_shape_item(item):
+    if isinstance(item, list):
+        return tuple(freeze_shape_item(value) for value in item)
+    return item
+
+
+def normalize_config_shape(op: str, shape: list[object]) -> ShapeKey:
+    key = tuple(freeze_shape_item(item) for item in shape)
+    if resolve_shape_source_op(op) != "mul":
+        return key
+
+    kind = key[0] if key else None
+    expected_length = 3 if kind == "broadcast" else 2
+    if kind not in {"broadcast", "same", "scalar"} or len(key) != expected_length:
+        raise ValueError(f"Invalid mul shape: {shape}")
+    return key
+
+
+def parse_count_map(count_yaml_path: Path, target_op: str) -> dict[ShapeKey, int]:
+    target_shape_op = resolve_shape_source_op(target_op)
+    if target_shape_op == "mul":
+        yaml_config = yaml.safe_load(count_yaml_path.read_text(encoding="utf-8")) or {}
+        count_map: dict[ShapeKey, int] = {}
+        for shape in yaml_config.get("mul", {}).get("shapes", []):
+            if not isinstance(shape, list) or len(shape) < 3:
+                raise ValueError(f"Invalid mul count shape: {shape}")
+            *shape_without_count, count = shape
+            if isinstance(count, bool) or not isinstance(count, int):
+                raise ValueError(f"Invalid mul count: {count}")
+            key = normalize_config_shape("mul", shape_without_count)
+            count_map[key] = count
+        return count_map
+
+    count_map: dict[ShapeKey, int] = {}
     current_op: str | None = None
     in_shapes = False
     current_shape: list[int] | None = None
-    target_shape_op = resolve_shape_source_op(target_op)
 
     def flush_current_shape() -> None:
         nonlocal current_shape
@@ -171,15 +208,50 @@ def infer_sparse_attention_shape_from_text(shape_text: str) -> tuple[int, int, i
     return (b, m, kv_len, topk, h, d)
 
 
-def infer_shape_key_from_shape_text(shape_text: str, target_op: str) -> tuple[int, ...] | None:
+def infer_mul_shape_from_text(shape_text: str) -> ShapeKey | None:
+    sizes = [
+        tuple(
+            int(token.strip())
+            for token in match.group("dims").split(",")
+            if token.strip()
+        )
+        for match in TORCH_SIZE_RE.finditer(shape_text)
+    ]
+    if len(sizes) == 2:
+        if sizes[0] == sizes[1]:
+            return "same", sizes[0]
+        return "broadcast", sizes[0], sizes[1]
+    if len(sizes) == 1 and SCALAR_TAIL_RE.search(shape_text):
+        return "scalar", sizes[0]
+    return None
+
+
+def infer_shape_key_from_shape_text(
+    shape_text: str, target_op: str
+) -> ShapeKey | None:
+    if resolve_shape_source_op(target_op) == "mul":
+        return infer_mul_shape_from_text(shape_text)
     if resolve_shape_source_op(target_op) == "sparse_attention":
         return infer_sparse_attention_shape_from_text(shape_text)
     return infer_bmnk_from_shape_text(shape_text)
 
 
+def shape_key_to_display(shape_key: ShapeKey, op: str) -> str:
+    if resolve_shape_source_op(op) != "mul":
+        return ", ".join(str(value) for value in shape_key)
+
+    kind = shape_key[0]
+    lhs_shape = shape_key[1]
+    if kind == "broadcast":
+        return f"broadcast: {lhs_shape} x {shape_key[2]}"
+    if kind == "same":
+        return f"same: {lhs_shape} x {lhs_shape}"
+    return f"scalar: {lhs_shape} x scalar"
+
+
 def convert_shape_to_display_and_count(
     shape_text: str,
-    count_map: dict[tuple[int, ...], int],
+    count_map: dict[ShapeKey, int],
     target_op: str,
     default_count: int | str = "-",
 ) -> tuple[str, str]:
@@ -188,7 +260,7 @@ def convert_shape_to_display_and_count(
         return shape_text, str(default_count)
 
     count = count_map.get(shape_key, default_count)
-    return ", ".join(str(dim) for dim in shape_key), str(count)
+    return shape_key_to_display(shape_key, target_op), str(count)
 
 
 def calc_gain_percent(default_speedup: str, expand_speedup: str) -> str:
@@ -301,74 +373,47 @@ def append_summary_rows(rows: list[list[str]], include_right_comparison: bool) -
 
 
 def parse_model_yaml(model_yaml_path: Path) -> list[dict[str, object]]:
+    yaml_config = yaml.safe_load(model_yaml_path.read_text(encoding="utf-8")) or {}
+    if not isinstance(yaml_config, dict):
+        raise ValueError(f"Invalid model YAML: {model_yaml_path}")
+
     blocks: list[dict[str, object]] = []
-    current_block: dict[str, object] | None = None
-    in_shapes = False
-    current_shape: list[int] | None = None
-
-    with model_yaml_path.open("r", encoding="utf-8", errors="ignore") as file:
-        for raw_line in file:
-            line = raw_line.rstrip("\n")
-
-            op_match = re.match(r"^([A-Za-z_][A-Za-z0-9_]*)\:$", line)
-            if op_match:
-                current_block = {
-                    "op": op_match.group(1),
-                    "shapes": [],
-                    "shape_desc": None,
-                }
-                blocks.append(current_block)
-                in_shapes = False
-                current_shape = None
-                continue
-
-            if current_block is None:
-                continue
-
-            if line.strip() == "shapes:":
-                in_shapes = True
-                continue
-
-            if line.strip().startswith("shape_desc:"):
-                current_block["shape_desc"] = line.split(":", 1)[1].strip()
-                in_shapes = False
-                current_shape = None
-                continue
-
-            if not in_shapes:
-                continue
-
-            if line.startswith("  - - "):
-                first = int(line.split("  - - ", 1)[1].strip())
-                current_shape = [first]
-                current_block["shapes"].append(current_shape)
-                continue
-
-            dim_match = re.match(r"^\s*-\s*(\d+)\s*$", line)
-            if dim_match and current_shape is not None:
-                current_shape.append(int(dim_match.group(1)))
+    for op, config in yaml_config.items():
+        if not isinstance(config, dict):
+            raise ValueError(f"Invalid config for operator '{op}'")
+        shapes = config.get("shapes", [])
+        if shapes is None:
+            shapes = []
+        if not isinstance(shapes, list):
+            raise ValueError(f"Invalid shapes for operator '{op}'")
+        blocks.append(
+            {
+                "op": op,
+                "shapes": shapes,
+                "shape_desc": config.get("shape_desc"),
+            }
+        )
 
     return blocks
 
 
 def write_model_shapes_yaml(output_path: Path, blocks: list[dict[str, object]]) -> None:
+    yaml_config: dict[str, dict[str, object]] = {}
+    for block in blocks:
+        op = str(block["op"])
+        config: dict[str, object] = {"shapes": block["shapes"]}
+        if block.get("shape_desc"):
+            config["shape_desc"] = block["shape_desc"]
+        yaml_config[op] = config
+
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with output_path.open("w", encoding="utf-8") as file:
-        for idx, block in enumerate(blocks):
-            op = block["op"]
-            shapes = block["shapes"]
-            shape_desc = block["shape_desc"]
-            file.write(f"{op}:\n")
-            file.write("  shapes:\n")
-            for shape in shapes:
-                file.write("  - - ")
-                file.write(f"{shape[0]}\n")
-                for dim in shape[1:]:
-                    file.write(f"    - {dim}\n")
-            if shape_desc:
-                file.write(f"  shape_desc: {shape_desc}\n")
-            if idx != len(blocks) - 1:
-                file.write("\n")
+        yaml.safe_dump(
+            yaml_config,
+            file,
+            allow_unicode=True,
+            sort_keys=False,
+        )
 
 
 def split_and_write_gain_lose_yaml(
@@ -380,26 +425,19 @@ def split_and_write_gain_lose_yaml(
     include_right_comparison: bool = True,
 ) -> tuple[int, int]:
     source_blocks = parse_model_yaml(model_yaml_path)
-    shape_to_gain: dict[tuple[int, ...], float] = {}
+    display_to_gain: dict[str, float] = {}
     target_shape_op = resolve_shape_source_op(op)
 
     for row in rows_by_gain:
         shape_text = row[0]
         score_text = row[8] if include_right_comparison else row[4]
-        parts = [part.strip() for part in shape_text.split(",")]
-        if not parts:
-            continue
-        try:
-            key = tuple(int(part) for part in parts)
-        except ValueError:
-            continue
         if include_right_comparison:
-            shape_to_gain[key] = parse_gain_value(score_text)
+            display_to_gain[shape_text] = parse_gain_value(score_text)
         else:
             try:
-                shape_to_gain[key] = float(score_text)
+                display_to_gain[shape_text] = float(score_text)
             except ValueError:
-                shape_to_gain[key] = float("-inf")
+                display_to_gain[shape_text] = float("-inf")
 
     gain_blocks: list[dict[str, object]] = []
     lose_blocks: list[dict[str, object]] = []
@@ -413,17 +451,30 @@ def split_and_write_gain_lose_yaml(
 
         if block_op != target_shape_op:
             copied_shapes = [shape.copy() for shape in block_shapes]
-            gain_blocks.append({"op": block_op, "shapes": copied_shapes, "shape_desc": block_shape_desc})
-            lose_blocks.append({"op": block_op, "shapes": copied_shapes, "shape_desc": block_shape_desc})
+            gain_blocks.append(
+                {
+                    "op": block_op,
+                    "shapes": copied_shapes,
+                    "shape_desc": block_shape_desc,
+                }
+            )
+            lose_blocks.append(
+                {
+                    "op": block_op,
+                    "shapes": copied_shapes,
+                    "shape_desc": block_shape_desc,
+                }
+            )
             continue
 
-        gain_shapes: list[list[int]] = []
-        lose_shapes: list[list[int]] = []
+        gain_shapes: list[list[object]] = []
+        lose_shapes: list[list[object]] = []
         for shape in block_shapes:
             if not shape:
                 continue
-            key = tuple(shape)
-            gain_value = shape_to_gain.get(key, float("-inf"))
+            key = normalize_config_shape(str(block_op), shape)
+            shape_display = shape_key_to_display(key, str(block_op))
+            gain_value = display_to_gain.get(shape_display, float("-inf"))
             if include_right_comparison:
                 is_gain_shape = gain_value > 0
             else:
@@ -436,8 +487,12 @@ def split_and_write_gain_lose_yaml(
                 lose_shapes.append(shape.copy())
                 lose_count += 1
 
-        gain_blocks.append({"op": block_op, "shapes": gain_shapes, "shape_desc": block_shape_desc})
-        lose_blocks.append({"op": block_op, "shapes": lose_shapes, "shape_desc": block_shape_desc})
+        gain_blocks.append(
+            {"op": block_op, "shapes": gain_shapes, "shape_desc": block_shape_desc}
+        )
+        lose_blocks.append(
+            {"op": block_op, "shapes": lose_shapes, "shape_desc": block_shape_desc}
+        )
 
     write_model_shapes_yaml(gain_yaml_path, gain_blocks)
     write_model_shapes_yaml(lose_yaml_path, lose_blocks)

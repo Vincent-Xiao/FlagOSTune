@@ -6,7 +6,14 @@ import re
 from collections import OrderedDict
 from pathlib import Path
 
+NumericShape = tuple[int, ...]
+MulShape = tuple[str, NumericShape] | tuple[str, NumericShape, NumericShape]
+ParsedShape = str | MulShape
+ShapeKey = NumericShape | MulShape
+GroupedShape = list[object]
+
 OP_SHAPE_DESC = {
+    "mul": "kind, lhs_shape, rhs_shape",
     "sparse_attention": "B, M, KV_LEN, TOPK, H, D",
 }
 OP_EXPECTED_DIMS = {
@@ -20,7 +27,46 @@ def normalize_text(text: str) -> str:
     return re.sub(r"\s+", " ", printable).strip()
 
 
-def parse_shape_line(line: str) -> tuple[str, str, int] | None:
+def parse_mul_dims(raw_dims: str) -> NumericShape:
+    tokens = [token.strip() for token in raw_dims.split(",") if token.strip()]
+    try:
+        dims = tuple(int(token) for token in tokens)
+    except ValueError as error:
+        raise ValueError(f"Invalid mul dimensions: ({raw_dims})") from error
+    if not dims or any(dim <= 0 for dim in dims):
+        raise ValueError(f"Mul dimensions must be positive: {dims}")
+    return dims
+
+
+def shapes_are_broadcastable(lhs: NumericShape, rhs: NumericShape) -> bool:
+    for lhs_dim, rhs_dim in zip(reversed(lhs), reversed(rhs)):
+        if lhs_dim != rhs_dim and lhs_dim != 1 and rhs_dim != 1:
+            return False
+    return True
+
+
+def parse_mul_shape_info(shape_part: str) -> MulShape:
+    match = re.search(
+        r"A=\((?P<lhs>[^)]*)\),\s*"
+        r"B=(?:(?P<scalar>scalar)|\((?P<rhs>[^)]*)\))",
+        shape_part,
+    )
+    if match is None:
+        raise ValueError(f"Invalid mul shape info: {shape_part}")
+
+    lhs = parse_mul_dims(match.group("lhs"))
+    if match.group("scalar"):
+        return "scalar", lhs
+
+    rhs = parse_mul_dims(match.group("rhs"))
+    if lhs == rhs:
+        return "same", lhs
+    if not shapes_are_broadcastable(lhs, rhs):
+        raise ValueError(f"Mul shapes cannot be broadcast: {lhs}, {rhs}")
+    return "broadcast", lhs, rhs
+
+
+def parse_shape_line(line: str) -> tuple[str, ParsedShape, int] | None:
     line = line.strip()
     if "[shape info]:" not in line:
         return None
@@ -37,6 +83,14 @@ def parse_shape_line(line: str) -> tuple[str, str, int] | None:
         return None
 
     shape_part = line.split("[shape info]:", 1)[1].strip()
+    count = 1
+    count_match = re.search(r"\[count\]\s*:\s*(\d+)", line)
+    if count_match:
+        count = int(count_match.group(1))
+
+    if normalize_op_key(op_name) == "mul":
+        return op_name, parse_mul_shape_info(shape_part), count
+
     left = shape_part.find("[")
     right = shape_part.find("]", left + 1) if left != -1 else -1
     if left == -1 or right == -1:
@@ -45,12 +99,6 @@ def parse_shape_line(line: str) -> tuple[str, str, int] | None:
     shape_info = normalize_text(shape_part[left : right + 1])
     if not re.match(r"^\[\s*[-\d,\s]+\]$", shape_info):
         return None
-
-    # Logs provide an explicit aggregated count like: [count]: 11.
-    count = 1
-    count_match = re.search(r"\[count\]\s*:\s*(\d+)", line)
-    if count_match:
-        count = int(count_match.group(1))
 
     return op_name, shape_info, count
 
@@ -114,8 +162,8 @@ def get_expected_dims_for_op(op_key: str) -> set[int] | None:
     return None
 
 
-def collect_sorted_records(input_path: Path) -> list[tuple[str, str, int]]:
-    records: dict[tuple[str, str], int] = {}
+def collect_sorted_records(input_path: Path) -> list[tuple[str, ParsedShape, int]]:
+    records: dict[tuple[str, ParsedShape], int] = {}
 
     with input_path.open("r", encoding="utf-8", errors="ignore") as infile:
         for raw_line in infile:
@@ -133,19 +181,34 @@ def collect_sorted_records(input_path: Path) -> list[tuple[str, str, int]]:
     return [(op, shape, count) for (op, shape), count in sorted_items]
 
 
+def shape_key_to_list(shape_key: ShapeKey) -> GroupedShape:
+    return [
+        list(item) if isinstance(item, tuple) else item
+        for item in shape_key
+    ]
+
+
 def build_grouped_shapes(
-    records: list[tuple[str, str, int]], include_count: bool = True
-) -> OrderedDict[str, list[list[int]]]:
-    grouped_counts: OrderedDict[str, OrderedDict[tuple[int, ...], int]] = OrderedDict()
+    records: list[tuple[str, ParsedShape, int]], include_count: bool = True
+) -> OrderedDict[str, list[GroupedShape]]:
+    grouped_counts: OrderedDict[str, OrderedDict[ShapeKey, int]] = OrderedDict()
 
     for full_op, raw_shape, count in records:
         op_key = normalize_op_key(full_op)
-        # Normalize operator-specific log layouts before dedup/merge. This is
-        # especially important for gemv_mm, because it is merged into `mm`.
-        shape_key = tuple(normalize_shape_for_op(full_op, parse_shape(raw_shape)))
-        expected_dims = get_expected_dims_for_op(op_key)
-        if expected_dims is not None:
-            if len(shape_key) not in expected_dims:
+        if op_key == "mul":
+            if isinstance(raw_shape, str):
+                raise ValueError(f"Invalid parsed mul shape: {raw_shape}")
+            shape_key: ShapeKey = raw_shape
+        else:
+            if not isinstance(raw_shape, str):
+                raise ValueError(f"Invalid numeric shape: {raw_shape}")
+            # Normalize operator-specific log layouts before dedup/merge. This
+            # is especially important for gemv_mm, because it is merged into `mm`.
+            shape_key = tuple(
+                normalize_shape_for_op(full_op, parse_shape(raw_shape))
+            )
+            expected_dims = get_expected_dims_for_op(op_key)
+            if expected_dims is not None and len(shape_key) not in expected_dims:
                 continue
 
         if op_key not in grouped_counts:
@@ -156,34 +219,40 @@ def build_grouped_shapes(
 
         grouped_counts[op_key][shape_key] += count
 
-    grouped: OrderedDict[str, list[list[int]]] = OrderedDict()
+    grouped: OrderedDict[str, list[GroupedShape]] = OrderedDict()
     for op_key, shape_to_count in grouped_counts.items():
         if include_count:
-            grouped[op_key] = [list(shape_key) + [count] for shape_key, count in shape_to_count.items()]
+            grouped[op_key] = [
+                shape_key_to_list(shape_key) + [count]
+                for shape_key, count in shape_to_count.items()
+            ]
         else:
-            grouped[op_key] = [list(shape_key) for shape_key in shape_to_count.keys()]
+            grouped[op_key] = [
+                shape_key_to_list(shape_key)
+                for shape_key in shape_to_count
+            ]
 
     return grouped
 
 
 def filter_by_op(
-    grouped_shapes: OrderedDict[str, list[list[int]]], op_name: str | None
-) -> OrderedDict[str, list[list[int]]]:
+    grouped_shapes: OrderedDict[str, list[GroupedShape]], op_name: str | None
+) -> OrderedDict[str, list[GroupedShape]]:
     if not op_name:
         return grouped_shapes
 
     if op_name not in grouped_shapes:
         raise ValueError(f"Operator '{op_name}' not found in input file")
 
-    filtered: OrderedDict[str, list[list[int]]] = OrderedDict()
+    filtered: OrderedDict[str, list[GroupedShape]] = OrderedDict()
     filtered[op_name] = grouped_shapes[op_name]
     return filtered
 
 
 def filter_by_n_eq_1(
-    grouped_shapes: OrderedDict[str, list[list[int]]], *, is_n_eq_1: bool
-) -> OrderedDict[str, list[list[int]]]:
-    filtered: OrderedDict[str, list[list[int]]] = OrderedDict()
+    grouped_shapes: OrderedDict[str, list[GroupedShape]], *, is_n_eq_1: bool
+) -> OrderedDict[str, list[GroupedShape]]:
+    filtered: OrderedDict[str, list[GroupedShape]] = OrderedDict()
 
     for op_name, shapes in grouped_shapes.items():
         matched_shapes = []
@@ -200,7 +269,9 @@ def filter_by_n_eq_1(
 
 
 def dump_shapes_yaml(
-    grouped_shapes: OrderedDict[str, list[list[int]]], output_path: Path, include_count: bool = True
+    grouped_shapes: OrderedDict[str, list[GroupedShape]],
+    output_path: Path,
+    include_count: bool = True,
 ) -> None:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with output_path.open("w", encoding="utf-8") as file:
@@ -221,7 +292,9 @@ def dump_shapes_yaml(
                 file.write("\n")
 
 
-def print_operator_summary(grouped_shapes: OrderedDict[str, list[list[int]]]) -> None:
+def print_operator_summary(
+    grouped_shapes: OrderedDict[str, list[GroupedShape]],
+) -> None:
     print("Operator shape counts:")
     for op_name, shapes in grouped_shapes.items():
         print(f"  - {op_name}: {len(shapes)}")
