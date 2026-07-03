@@ -95,6 +95,8 @@ while [[ $# -gt 0 ]]; do
       echo "Example 3: $0 --yaml Qwen3.5-35B-A3B-p32768d1024 --branch --op w8a8_block_fp8_matmul"
       echo "Example 4: $0 --model Qwen3.5-35B-A3B-p32768d1024 --clear-cache --op mm"
       echo "Example 5: $0 --model Qwen3.5-35B-A3B-p32768d1024 --op mm --flagtune false"
+      echo "Example 6: $0 --model Qwen3.6-35B-A3B-p1024d1024 --op mul"
+      echo "Example 7: $0 --yaml Qwen3.6-35B-A3B-p1024d1024 --op mul"
       exit 0
       ;;
     *)
