@@ -1,13 +1,16 @@
 #!/usr/bin/env bash
 #
-# bench-vllm-patches-one-by-one-gems-null.sh - Benchmark vLLM patches one by one
-# with GEMS NULL mode.
+# bench-flaggems-current.sh - Benchmark vLLM patches one by one on native CUDA.
+#
+# For each operator this applies a single patch-vllm patch, runs the benchmark
+# in --mode cuda (no FlagGems global dispatch), then restores the patch. This
+# isolates the end-to-end impact of one hand-applied operator patch.
 #
 # Usage:
-#   ./scripts/bench-vllm-patches-one-by-one-gems-null.sh
-#   ./scripts/bench-vllm-patches-one-by-one-gems-null.sh --only w8a8,mm
-#   ./scripts/bench-vllm-patches-one-by-one-gems-null.sh --only fused-marlin-moe
-#   ./scripts/bench-vllm-patches-one-by-one-gems-null.sh --dry-run
+#   ./scripts/bench-flaggems-current.sh
+#   ./scripts/bench-flaggems-current.sh --only w8a8,mm
+#   ./scripts/bench-flaggems-current.sh --only fused-marlin-moe
+#   ./scripts/bench-flaggems-current.sh --dry-run
 #
 
 set -euo pipefail
@@ -268,7 +271,7 @@ report_paths_for_op() {
     local ext="$2"
     local report_dir="${PROJECT_ROOT}/reports/${MODEL_CONFIG}"
     local src="${report_dir}/bench-optimized-report-${REPORT_DATE}.${ext}"
-    local dst="${report_dir}/bench-optimized-report-${REPORT_DATE}-gems-null-${op}.${ext}"
+    local dst="${report_dir}/bench-optimized-report-${REPORT_DATE}-cuda-patch-${op}.${ext}"
     printf '%s\n%s\n' "$src" "$dst"
 }
 
@@ -347,14 +350,43 @@ archive_run_logs() {
     fi
 }
 
+# 清空源日志目录中的 *run*.log，避免上一次运行的残留日志被误当成本次结果归档
+clear_run_logs() {
+    local source_dir="$1"
+
+    if [[ "$DRY_RUN" == true ]]; then
+        printf '+ rm -f %q\n' "${source_dir}/*run*.log"
+        return 0
+    fi
+
+    [[ -d "$source_dir" ]] || return 0
+
+    shopt -s nullglob
+    local log_file removed=false
+    for log_file in "${source_dir}"/*run*.log; do
+        rm -f "$log_file"
+        removed=true
+    done
+    shopt -u nullglob
+
+    if [[ "$removed" == true ]]; then
+        log_info "Cleared stale run logs: $source_dir"
+    fi
+}
+
 run_cuda_baseline() {
     log_section "CUDA baseline"
 
     CURRENT_OP=""
     CURRENT_APPLIED=false
 
+    local cuda_log_dir="${PROJECT_ROOT}/results/${MODEL_CONFIG}/bench_optimized_log/vllm_bench_cuda_logs"
+
     log_step "Restore all patches"
     run_cmd "${SCRIPT_DIR}/patch-vllm-all.sh" --restore || return $?
+
+    log_step "Clear stale run logs"
+    clear_run_logs "$cuda_log_dir"
 
     log_step "Run CUDA baseline benchmark"
     run_cmd "${SCRIPT_DIR}/auto-workflow.sh" \
@@ -373,8 +405,7 @@ run_cuda_baseline() {
     rename_reports "cuda" || return $?
 
     log_step "Archive CUDA run logs"
-    archive_run_logs "cuda" \
-        "${PROJECT_ROOT}/results/${MODEL_CONFIG}/bench_optimized_log/vllm_bench_cuda_logs" || return $?
+    archive_run_logs "cuda" "$cuda_log_dir" || return $?
 }
 
 run_one_op() {
@@ -383,18 +414,22 @@ run_one_op() {
     CURRENT_OP="$op"
     CURRENT_APPLIED=false
 
+    local cuda_log_dir="${PROJECT_ROOT}/results/${MODEL_CONFIG}/bench_optimized_log/vllm_bench_cuda_logs"
+
     log_section "Benchmark patch: ${op}"
 
     log_step "Apply patch"
     run_cmd "${SCRIPT_DIR}/patch-vllm-all.sh" --apply --only "$op" || return $?
     CURRENT_APPLIED=true
 
-    log_step "Run GEMS NULL benchmark"
+    log_step "Clear stale run logs"
+    clear_run_logs "$cuda_log_dir"
+
+    log_step "Run CUDA benchmark (single patch: ${op})"
     run_cmd "${SCRIPT_DIR}/auto-workflow.sh" \
         --model "$MODEL_CONFIG" \
         --device "$DEVICE" \
-        --mode gems \
-        --gems-mode NULL \
+        --mode cuda \
         --scenario optimized || return $?
 
     log_step "Process bench results"
@@ -405,9 +440,8 @@ run_one_op() {
     log_step "Rename reports"
     rename_reports "$op" || return $?
 
-    log_step "Archive GEMS NULL run logs"
-    archive_run_logs "$op" \
-        "${PROJECT_ROOT}/results/${MODEL_CONFIG}/bench_optimized_log/vllm_bench_gems_NULL_logs" || return $?
+    log_step "Archive CUDA run logs"
+    archive_run_logs "$op" "$cuda_log_dir" || return $?
 
     log_step "Restore patch"
     run_cmd "${SCRIPT_DIR}/patch-vllm-all.sh" --restore --only "$op" || return $?
