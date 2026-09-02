@@ -18,7 +18,7 @@ DTYPES="bfloat16"
 WARMUP=1000
 PARALLEL=8
 ENABLE_FLAGTUNE=true
-MM_LAYOUT="both"
+MM_LAYOUT="nn"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
