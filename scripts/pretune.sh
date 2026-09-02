@@ -18,6 +18,7 @@ DTYPES="bfloat16"
 WARMUP=1000
 PARALLEL=8
 ENABLE_FLAGTUNE=true
+MM_LAYOUT="both"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -68,8 +69,12 @@ while [[ $# -gt 0 ]]; do
       ENABLE_FLAGTUNE="$2"
       shift 2
       ;;
+    --mm-layout)
+      MM_LAYOUT="$2"
+      shift 2
+      ;;
     -h|--help)
-      echo "Usage: $0 [--model <model_name>] [--yaml <yaml_name>] [--branch [branch_name]] [--clear-cache] [--op <op_name>] [--cache-dir <dir>] [--dtypes <dtype_list>] [--warmup <count>] [--parallel <count>] [--flagtune <true|false>]"
+      echo "Usage: $0 [--model <model_name>] [--yaml <yaml_name>] [--branch [branch_name]] [--clear-cache] [--op <op_name>] [--cache-dir <dir>] [--dtypes <dtype_list>] [--warmup <count>] [--parallel <count>] [--flagtune <true|false>] [--mm-layout <nn|nt|both>]"
       echo "Behavior:"
       echo "  - If --model is provided, use model mode and run shape-gen.py."
       echo "  - Else if --yaml is provided, use yaml mode and load FlagTune/shape-config/<yaml_name>.yaml directly."
@@ -78,7 +83,8 @@ while [[ $# -gt 0 ]]; do
       echo "  - If --branch is provided without a value, the compare branch defaults to master."
       echo "  - If any git checkout fails, the script exits immediately and prints the git error."
       echo "  - If --clear-cache is provided, delete Flaggems cache before each benchmark run."
-      echo "  - If --flagtune is false, skip the expand stage that runs with USE_FLAGTUNE=1."
+      echo "  - If --flagtune is false, skip the expand stage that enables FlagTune for --op only."
+      echo "  - If --mm-layout is provided for mm, benchmark NN, NT, or both B layouts."
       echo "Defaults:"
       echo "  - model: Qwen3.5-35B-A3B-p32768d1024"
       echo "  - yaml: Qwen3.5-35B-A3B-p32768d1024"
@@ -89,6 +95,7 @@ while [[ $# -gt 0 ]]; do
       echo "  - parallel: 8"
       echo "  - flagtune: true"
       echo "  - branch: master"
+      echo "  - mm-layout: both"
       echo "Default run: $0 --model Qwen3.5-35B-A3B-p32768d1024 --op mm --cache-dir /root/.flaggems --dtypes bfloat16 --warmup 1000 --parallel 8 --flagtune true"
       echo "Example 1: $0 --model Qwen3.5-35B-A3B-p32768d1024 --op mm"
       echo "Example 2: $0 --yaml Qwen3.5-35B-A3B-p32768d1024 --op mm"
@@ -108,6 +115,16 @@ done
 
 if [[ "${ENABLE_FLAGTUNE,,}" != "true" && "${ENABLE_FLAGTUNE,,}" != "false" ]]; then
   echo "[ERROR] Invalid value for --flagtune: ${ENABLE_FLAGTUNE}. Expected true or false."
+  exit 1
+fi
+
+if [[ "$MM_LAYOUT" != "nn" && "$MM_LAYOUT" != "nt" && "$MM_LAYOUT" != "both" ]]; then
+  echo "[ERROR] Invalid value for --mm-layout: ${MM_LAYOUT}. Expected nn, nt, or both."
+  exit 1
+fi
+
+if [[ "$OP" != "mm" && "$MM_LAYOUT" != "both" ]]; then
+  echo "[ERROR] --mm-layout nn/nt requires --op mm."
   exit 1
 fi
 
@@ -168,7 +185,7 @@ run_mm_benchmark() {
     -s
     --shape_file "$shape_file"
     --level core
-    --mode kernel
+    --mode cudagraph
     --parallel "$PARALLEL"
     --warmup "$WARMUP"
     -v
@@ -183,16 +200,31 @@ run_mm_benchmark() {
     clear_flaggems_cache
   fi
 
+  if [[ "$OP" == "mm" ]]; then
+    pytest_args+=(--mm-layout "$MM_LAYOUT")
+  fi
+
+  # 这里改了flagtune范围
   if [[ "${use_flagtune,,}" == "true" ]]; then
-    run_cmd env USE_FLAGTUNE=1 pytest "${pytest_args[@]}"
+    run_cmd env \
+      -u USE_FLAGTUNE \
+      -u FLAGTUNE_INCLUDE_OPS \
+      FLAGTUNE_INCLUDE="$OP" \
+      pytest "${pytest_args[@]}"
   else
-    run_cmd pytest "${pytest_args[@]}"
+    run_cmd env \
+      -u USE_FLAGTUNE \
+      -u FLAGTUNE_INCLUDE \
+      -u FLAGTUNE_INCLUDE_OPS \
+      pytest "${pytest_args[@]}"
   fi
 }
 
 REPORT_SUFFIX=""
 if [[ "${BRANCH_COMPARE,,}" == "true" ]]; then
   REPORT_SUFFIX="_$(echo "$COMPARE_BRANCH" | tr '/ ' '__')"
+elif [[ "$OP" == "mm" && "$MM_LAYOUT" != "both" ]]; then
+  REPORT_SUFFIX="_${MM_LAYOUT}"
 fi
 REPORT_MD="$FLAGTUNE_DIR/reports/${RUN_NAME}_${OP}${REPORT_SUFFIX}.md"
 REPORT_XLSX="$FLAGTUNE_DIR/reports/${RUN_NAME}_${OP}${REPORT_SUFFIX}.xlsx"
