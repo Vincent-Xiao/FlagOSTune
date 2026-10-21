@@ -1,0 +1,10 @@
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [4033, 64, 576, 361344, 1, 2048, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 312
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [64, 64, 576, 361344, 1, 2048, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 312
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [14337, 64, 576, 361344, 1, 2048, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 78
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [14344, 64, 576, 361344, 1, 2048, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 78
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [14543, 64, 576, 361344, 1, 2048, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 78
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [15321, 64, 576, 361344, 1, 2048, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 78
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [2048, 64, 576, 361344, 1, 2048, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 78
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [3586, 64, 576, 361344, 1, 2048, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 78
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [512, 64, 576, 361344, 1, 2048, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 78
+flag_gems.ops.flashmla_sparse.flash_mla_sparse_fwd, [shape info]: [7087, 64, 576, 361344, 1, 2048, 512](SQ, HQ, DQK, SKV, HKV, TOPK, DV), [count]: 78
