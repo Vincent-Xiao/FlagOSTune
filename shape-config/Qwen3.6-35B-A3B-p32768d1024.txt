@@ -120,6 +120,29 @@ flag_gems.ops.fused_moe.fused_moe, [shape info]: [88, 256, 1024, 2048, 8](num_to
 flag_gems.ops.fused_moe.fused_moe, [shape info]: [96, 256, 1024, 2048, 8](num_tokens,E,N,K,top_k_num), [count]: 160
 flag_gems.ops.fused_moe.fused_moe, [shape info]: [2048, 256, 1024, 2048, 8](num_tokens,E,N,K,top_k_num), [count]: 40
 
+# TP=2 (tensor_parallel_size=2)
+flag_gems.ops.fused_moe.fused_moe, [shape info]: [16384, 256, 512, 2048, 8](num_tokens,E,N,K,top_k_num), [count]: 680
+flag_gems.ops.fused_moe.fused_moe, [shape info]: [64, 256, 512, 2048, 8](num_tokens,E,N,K,top_k_num), [count]: 280
+flag_gems.ops.fused_moe.fused_moe, [shape info]: [56, 256, 512, 2048, 8](num_tokens,E,N,K,top_k_num), [count]: 240
+flag_gems.ops.fused_moe.fused_moe, [shape info]: [1, 256, 512, 2048, 8](num_tokens,E,N,K,top_k_num), [count]: 160
+flag_gems.ops.fused_moe.fused_moe, [shape info]: [120, 256, 512, 2048, 8](num_tokens,E,N,K,top_k_num), [count]: 160
+flag_gems.ops.fused_moe.fused_moe, [shape info]: [128, 256, 512, 2048, 8](num_tokens,E,N,K,top_k_num), [count]: 160
+flag_gems.ops.fused_moe.fused_moe, [shape info]: [16, 256, 512, 2048, 8](num_tokens,E,N,K,top_k_num), [count]: 160
+flag_gems.ops.fused_moe.fused_moe, [shape info]: [2, 256, 512, 2048, 8](num_tokens,E,N,K,top_k_num), [count]: 160
+flag_gems.ops.fused_moe.fused_moe, [shape info]: [24, 256, 512, 2048, 8](num_tokens,E,N,K,top_k_num), [count]: 160
+flag_gems.ops.fused_moe.fused_moe, [shape info]: [32, 256, 512, 2048, 8](num_tokens,E,N,K,top_k_num), [count]: 160
+flag_gems.ops.fused_moe.fused_moe, [shape info]: [4, 256, 512, 2048, 8](num_tokens,E,N,K,top_k_num), [count]: 160
+flag_gems.ops.fused_moe.fused_moe, [shape info]: [40, 256, 512, 2048, 8](num_tokens,E,N,K,top_k_num), [count]: 160
+flag_gems.ops.fused_moe.fused_moe, [shape info]: [48, 256, 512, 2048, 8](num_tokens,E,N,K,top_k_num), [count]: 160
+flag_gems.ops.fused_moe.fused_moe, [shape info]: [8, 256, 512, 2048, 8](num_tokens,E,N,K,top_k_num), [count]: 160
+flag_gems.ops.fused_moe.fused_moe, [shape info]: [104, 256, 512, 2048, 8](num_tokens,E,N,K,top_k_num), [count]: 80
+flag_gems.ops.fused_moe.fused_moe, [shape info]: [112, 256, 512, 2048, 8](num_tokens,E,N,K,top_k_num), [count]: 80
+flag_gems.ops.fused_moe.fused_moe, [shape info]: [72, 256, 512, 2048, 8](num_tokens,E,N,K,top_k_num), [count]: 80
+flag_gems.ops.fused_moe.fused_moe, [shape info]: [80, 256, 512, 2048, 8](num_tokens,E,N,K,top_k_num), [count]: 80
+flag_gems.ops.fused_moe.fused_moe, [shape info]: [88, 256, 512, 2048, 8](num_tokens,E,N,K,top_k_num), [count]: 80
+flag_gems.ops.fused_moe.fused_moe, [shape info]: [96, 256, 512, 2048, 8](num_tokens,E,N,K,top_k_num), [count]: 80
+flag_gems.ops.fused_moe.fused_moe, [shape info]: [139, 256, 512, 2048, 8](num_tokens,E,N,K,top_k_num), [count]: 40
+
 # TP=4 (tensor_parallel_size=4)
 flag_gems.ops.fused_moe.fused_moe, [shape info]: [16384, 256, 256, 2048, 8](num_tokens,E,N,K,top_k_num), [count]: 3320
 flag_gems.ops.fused_moe.fused_moe, [shape info]: [496, 256, 256, 2048, 8](num_tokens,E,N,K,top_k_num), [count]: 320
